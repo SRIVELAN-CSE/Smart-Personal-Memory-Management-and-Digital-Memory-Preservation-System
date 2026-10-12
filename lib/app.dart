@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/widgets/library_status_banner.dart';
 import 'features/privacy/presentation/privacy_controller.dart';
 import 'routing/app_router.dart';
 
@@ -20,6 +21,12 @@ class SmartMemoryApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       routerConfig: ref.watch(appRouterProvider),
+      builder: (context, child) => Column(
+        children: [
+          const LibraryStatusBanner(),
+          Expanded(child: child ?? const SizedBox.shrink()),
+        ],
+      ),
     );
   }
 }

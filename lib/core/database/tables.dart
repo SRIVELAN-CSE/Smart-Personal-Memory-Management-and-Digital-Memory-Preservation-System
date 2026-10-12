@@ -81,6 +81,11 @@ class Places extends Table with AuditColumns {
   late final name = text()();
   late final latitude = real().nullable()();
   late final longitude = real().nullable()();
+  late final locality = text().nullable()();
+  late final city = text().nullable()();
+  late final region = text().nullable()();
+  late final country = text().nullable()();
+  late final formattedAddress = text().nullable()();
   late final isConfirmed = boolean().withDefault(const Constant(false))();
   late final isDemo = boolean().withDefault(const Constant(false))();
 

@@ -64,6 +64,53 @@ Every rule-based engine retains factor contributions and reason codes. Sensitive
 events are removed from proactive recommendations and never produce revealing
 lock-screen text.
 
+## Photo locations in memories
+
+Events and timeline cards now display where their photos were taken. Import reads
+embedded GPS using the gallery plugin's asynchronous metadata API. The event uses
+the largest 0.01-degree coordinate grid group, then its actual coordinate nearest
+the group centroid. Ties use capture time then media ID. This is an approximation
+(nearby coordinates on opposite grid boundaries can form separate groups).
+A confirmed manual place takes precedence. Expand **Photo locations** to inspect each photo or
+video's own coordinates, including missing-location entries.
+
+The personal memory graph links events to photos, tagged people and places.
+Event nodes open details; photo nodes select that photo in details; person and
+place nodes open the timeline with the relevant filter.
+Hidden memories are excluded from the graph and their timeline location is hidden.
+
+Place-name lookup uses the device geocoding service. Coordinates remain available
+when that service fails, times out, or returns no name. Media without GPS shows
+**Location unavailable** and supports **Add location**. Run **Scan** again to
+recover missing coordinates for previously imported media and retry unresolved
+place names. This preserves event groupings, stories, OCR, and manual corrections.
+
+Schema v4 adds nullable locality, city, region, country and formatted-address
+columns to existing places. No new dependency or current-device location
+permission is needed. Physical-device validation of real photo GPS and Android permission
+combinations remains pending. See [PROJECT_STATUS.md](PROJECT_STATUS.md).
+
+## Search and Memory Companion
+
+The timeline searches titles, tagged people and stored locations with a 250 ms
+debounce. Explicit person and location filters combine with date filters and can
+be cleared independently. It builds a normalized index from restored state once
+per library revision, avoiding database reads for each keystroke.
+
+Dates use the event's capture interval and local calendar boundaries. Today and
+yesterday are single days. Last 2/7/30 days include today; last week is the
+previous Monday–Sunday; last month/year are previous calendar periods. Custom
+ranges include both selected days. Events overlapping any part of a range match.
+
+Open **Memory Companion** from the chat icon in the main app bar. It performs
+offline, template-based retrieval (for example, “photos with Asha at Campus hall
+from August 2026”). Answers contain separate event, photo, person and place
+cards. Each target is checked against the current library before navigation;
+deleted and hidden records become unavailable. Sessions are temporary and retain
+up to 60 messages; answers show up to 8 events, 3 media and 5 people per event.
+This is bounded keyword retrieval, not a generative language model. Story editing
+and reminders use the existing event and recommendation screens.
+
 ## Research integrity
 
 - **Significance** is an application estimate based on explicit interactions such
@@ -180,17 +227,17 @@ flutter test
 flutter build apk --debug
 ```
 
-The verified analysis pass reports **No issues found** and all **31 automated tests
+The verified analysis pass reports **No issues found** and all **53 automated tests
 pass**. The suite covers clustering, score engines, sensitivity gating, normalized
 Drift round trips/atomic replacement/safe deletion, idempotent scans, permission
 denial, an empty gallery, and the timeline widget. See
 [TESTING.md](TESTING.md) for the evidence and manual Android matrix.
 
 The verified debug artifact is
-`build/app/outputs/flutter-apk/app-debug.apk` (211,983,497 bytes), package
+`build/app/outputs/flutter-apk/app-debug.apk` (190,069,347 bytes), package
 `com.mkce.smartmemory`, min SDK 24, target/compile SDK 36, and APK Signature Scheme
 v2 debug-signed. SHA-256:
-`0f2b8e8ca72d307f771adfb64bb4053995721858987bb9107bae9b823f293ac7`.
+`bd5e4f6b99f855245e78592d0c7bf447c8fbc46974439adb95584e92431afd2d`.
 
 ## Demo
 

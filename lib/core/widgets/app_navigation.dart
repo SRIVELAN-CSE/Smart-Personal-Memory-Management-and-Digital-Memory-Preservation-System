@@ -26,6 +26,11 @@ class AppNavigation extends StatelessWidget {
             actions ??
             [
               IconButton(
+                tooltip: 'Memory Companion',
+                onPressed: () => context.push('/companion'),
+                icon: const Icon(Icons.chat_bubble_outline),
+              ),
+              IconButton(
                 tooltip: 'Privacy and settings',
                 onPressed: () => context.push('/privacy'),
                 icon: const Icon(Icons.shield_outlined),

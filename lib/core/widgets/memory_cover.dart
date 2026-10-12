@@ -10,19 +10,24 @@ class MemoryCover extends StatelessWidget {
     required this.event,
     this.height = 190,
     this.borderRadius = const BorderRadius.all(Radius.circular(24)),
+    this.mediaId,
     super.key,
   });
 
   final MemoryEvent event;
   final double height;
   final BorderRadius borderRadius;
+  final String? mediaId;
 
   @override
   Widget build(BuildContext context) {
     final cover = event.media
-        .where((item) => item.id == event.coverMediaId)
+        .where((item) => item.id == (mediaId ?? event.coverMediaId))
         .firstOrNull;
-    final media = cover ?? event.media.firstOrNull;
+    final media =
+        cover ??
+        event.media.where((m) => m.id == event.coverMediaId).firstOrNull ??
+        event.media.firstOrNull;
     final thumbnail = media?.thumbnailBytes;
     final scheme = Theme.of(context).colorScheme;
     return ClipRRect(

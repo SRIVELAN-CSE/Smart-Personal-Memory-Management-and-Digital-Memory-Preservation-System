@@ -20,6 +20,8 @@ import '../features/reminders/presentation/time_capsule_screen.dart';
 import '../features/settings/presentation/about_methodology_screen.dart';
 import '../features/settings/presentation/data_management_screen.dart';
 import '../features/timeline/presentation/story_timeline_screen.dart';
+import '../features/timeline/domain/event_filter.dart';
+import '../features/chatbot/presentation/chat_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -44,12 +46,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/timeline',
-        builder: (context, state) => const StoryTimelineScreen(),
+        builder: (context, state) => StoryTimelineScreen(
+          initialFilter: EventFilter.fromParameters(state.uri.queryParameters),
+        ),
       ),
       GoRoute(
         path: '/event/:id',
-        builder: (context, state) =>
-            EventDetailScreen(eventId: state.pathParameters['id']!),
+        builder: (context, state) => EventDetailScreen(
+          eventId: state.pathParameters['id']!,
+          selectedMediaId: state.uri.queryParameters['media'],
+        ),
         routes: [
           GoRoute(
             path: 'edit',
@@ -76,6 +82,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/graph',
         builder: (context, state) => const MemoryGraphScreen(),
+      ),
+      GoRoute(
+        path: '/companion',
+        builder: (context, state) => const ChatScreen(),
       ),
       GoRoute(
         path: '/recommendations',

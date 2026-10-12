@@ -2255,6 +2255,57 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _localityMeta = const VerificationMeta(
+    'locality',
+  );
+  @override
+  late final GeneratedColumn<String> locality = GeneratedColumn<String>(
+    'locality',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cityMeta = const VerificationMeta('city');
+  @override
+  late final GeneratedColumn<String> city = GeneratedColumn<String>(
+    'city',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _regionMeta = const VerificationMeta('region');
+  @override
+  late final GeneratedColumn<String> region = GeneratedColumn<String>(
+    'region',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _countryMeta = const VerificationMeta(
+    'country',
+  );
+  @override
+  late final GeneratedColumn<String> country = GeneratedColumn<String>(
+    'country',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _formattedAddressMeta = const VerificationMeta(
+    'formattedAddress',
+  );
+  @override
+  late final GeneratedColumn<String> formattedAddress = GeneratedColumn<String>(
+    'formatted_address',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isConfirmedMeta = const VerificationMeta(
     'isConfirmed',
   );
@@ -2291,6 +2342,11 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
     name,
     latitude,
     longitude,
+    locality,
+    city,
+    region,
+    country,
+    formattedAddress,
     isConfirmed,
     isDemo,
   ];
@@ -2343,6 +2399,39 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
         longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta),
       );
     }
+    if (data.containsKey('locality')) {
+      context.handle(
+        _localityMeta,
+        locality.isAcceptableOrUnknown(data['locality']!, _localityMeta),
+      );
+    }
+    if (data.containsKey('city')) {
+      context.handle(
+        _cityMeta,
+        city.isAcceptableOrUnknown(data['city']!, _cityMeta),
+      );
+    }
+    if (data.containsKey('region')) {
+      context.handle(
+        _regionMeta,
+        region.isAcceptableOrUnknown(data['region']!, _regionMeta),
+      );
+    }
+    if (data.containsKey('country')) {
+      context.handle(
+        _countryMeta,
+        country.isAcceptableOrUnknown(data['country']!, _countryMeta),
+      );
+    }
+    if (data.containsKey('formatted_address')) {
+      context.handle(
+        _formattedAddressMeta,
+        formattedAddress.isAcceptableOrUnknown(
+          data['formatted_address']!,
+          _formattedAddressMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_confirmed')) {
       context.handle(
         _isConfirmedMeta,
@@ -2391,6 +2480,26 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
         DriftSqlType.double,
         data['${effectivePrefix}longitude'],
       ),
+      locality: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}locality'],
+      ),
+      city: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}city'],
+      ),
+      region: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}region'],
+      ),
+      country: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}country'],
+      ),
+      formattedAddress: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}formatted_address'],
+      ),
       isConfirmed: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_confirmed'],
@@ -2415,6 +2524,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   final String name;
   final double? latitude;
   final double? longitude;
+  final String? locality;
+  final String? city;
+  final String? region;
+  final String? country;
+  final String? formattedAddress;
   final bool isConfirmed;
   final bool isDemo;
   const PlaceRow({
@@ -2424,6 +2538,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     required this.name,
     this.latitude,
     this.longitude,
+    this.locality,
+    this.city,
+    this.region,
+    this.country,
+    this.formattedAddress,
     required this.isConfirmed,
     required this.isDemo,
   });
@@ -2439,6 +2558,21 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     }
     if (!nullToAbsent || longitude != null) {
       map['longitude'] = Variable<double>(longitude);
+    }
+    if (!nullToAbsent || locality != null) {
+      map['locality'] = Variable<String>(locality);
+    }
+    if (!nullToAbsent || city != null) {
+      map['city'] = Variable<String>(city);
+    }
+    if (!nullToAbsent || region != null) {
+      map['region'] = Variable<String>(region);
+    }
+    if (!nullToAbsent || country != null) {
+      map['country'] = Variable<String>(country);
+    }
+    if (!nullToAbsent || formattedAddress != null) {
+      map['formatted_address'] = Variable<String>(formattedAddress);
     }
     map['is_confirmed'] = Variable<bool>(isConfirmed);
     map['is_demo'] = Variable<bool>(isDemo);
@@ -2457,6 +2591,19 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       longitude: longitude == null && nullToAbsent
           ? const Value.absent()
           : Value(longitude),
+      locality: locality == null && nullToAbsent
+          ? const Value.absent()
+          : Value(locality),
+      city: city == null && nullToAbsent ? const Value.absent() : Value(city),
+      region: region == null && nullToAbsent
+          ? const Value.absent()
+          : Value(region),
+      country: country == null && nullToAbsent
+          ? const Value.absent()
+          : Value(country),
+      formattedAddress: formattedAddress == null && nullToAbsent
+          ? const Value.absent()
+          : Value(formattedAddress),
       isConfirmed: Value(isConfirmed),
       isDemo: Value(isDemo),
     );
@@ -2474,6 +2621,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       name: serializer.fromJson<String>(json['name']),
       latitude: serializer.fromJson<double?>(json['latitude']),
       longitude: serializer.fromJson<double?>(json['longitude']),
+      locality: serializer.fromJson<String?>(json['locality']),
+      city: serializer.fromJson<String?>(json['city']),
+      region: serializer.fromJson<String?>(json['region']),
+      country: serializer.fromJson<String?>(json['country']),
+      formattedAddress: serializer.fromJson<String?>(json['formattedAddress']),
       isConfirmed: serializer.fromJson<bool>(json['isConfirmed']),
       isDemo: serializer.fromJson<bool>(json['isDemo']),
     );
@@ -2488,6 +2640,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       'name': serializer.toJson<String>(name),
       'latitude': serializer.toJson<double?>(latitude),
       'longitude': serializer.toJson<double?>(longitude),
+      'locality': serializer.toJson<String?>(locality),
+      'city': serializer.toJson<String?>(city),
+      'region': serializer.toJson<String?>(region),
+      'country': serializer.toJson<String?>(country),
+      'formattedAddress': serializer.toJson<String?>(formattedAddress),
       'isConfirmed': serializer.toJson<bool>(isConfirmed),
       'isDemo': serializer.toJson<bool>(isDemo),
     };
@@ -2500,6 +2657,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     String? name,
     Value<double?> latitude = const Value.absent(),
     Value<double?> longitude = const Value.absent(),
+    Value<String?> locality = const Value.absent(),
+    Value<String?> city = const Value.absent(),
+    Value<String?> region = const Value.absent(),
+    Value<String?> country = const Value.absent(),
+    Value<String?> formattedAddress = const Value.absent(),
     bool? isConfirmed,
     bool? isDemo,
   }) => PlaceRow(
@@ -2509,6 +2671,13 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     name: name ?? this.name,
     latitude: latitude.present ? latitude.value : this.latitude,
     longitude: longitude.present ? longitude.value : this.longitude,
+    locality: locality.present ? locality.value : this.locality,
+    city: city.present ? city.value : this.city,
+    region: region.present ? region.value : this.region,
+    country: country.present ? country.value : this.country,
+    formattedAddress: formattedAddress.present
+        ? formattedAddress.value
+        : this.formattedAddress,
     isConfirmed: isConfirmed ?? this.isConfirmed,
     isDemo: isDemo ?? this.isDemo,
   );
@@ -2520,6 +2689,13 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       name: data.name.present ? data.name.value : this.name,
       latitude: data.latitude.present ? data.latitude.value : this.latitude,
       longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      locality: data.locality.present ? data.locality.value : this.locality,
+      city: data.city.present ? data.city.value : this.city,
+      region: data.region.present ? data.region.value : this.region,
+      country: data.country.present ? data.country.value : this.country,
+      formattedAddress: data.formattedAddress.present
+          ? data.formattedAddress.value
+          : this.formattedAddress,
       isConfirmed: data.isConfirmed.present
           ? data.isConfirmed.value
           : this.isConfirmed,
@@ -2536,6 +2712,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
           ..write('name: $name, ')
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
+          ..write('locality: $locality, ')
+          ..write('city: $city, ')
+          ..write('region: $region, ')
+          ..write('country: $country, ')
+          ..write('formattedAddress: $formattedAddress, ')
           ..write('isConfirmed: $isConfirmed, ')
           ..write('isDemo: $isDemo')
           ..write(')'))
@@ -2550,6 +2731,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     name,
     latitude,
     longitude,
+    locality,
+    city,
+    region,
+    country,
+    formattedAddress,
     isConfirmed,
     isDemo,
   );
@@ -2563,6 +2749,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
           other.name == this.name &&
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
+          other.locality == this.locality &&
+          other.city == this.city &&
+          other.region == this.region &&
+          other.country == this.country &&
+          other.formattedAddress == this.formattedAddress &&
           other.isConfirmed == this.isConfirmed &&
           other.isDemo == this.isDemo);
 }
@@ -2574,6 +2765,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
   final Value<String> name;
   final Value<double?> latitude;
   final Value<double?> longitude;
+  final Value<String?> locality;
+  final Value<String?> city;
+  final Value<String?> region;
+  final Value<String?> country;
+  final Value<String?> formattedAddress;
   final Value<bool> isConfirmed;
   final Value<bool> isDemo;
   final Value<int> rowid;
@@ -2584,6 +2780,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     this.name = const Value.absent(),
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
+    this.locality = const Value.absent(),
+    this.city = const Value.absent(),
+    this.region = const Value.absent(),
+    this.country = const Value.absent(),
+    this.formattedAddress = const Value.absent(),
     this.isConfirmed = const Value.absent(),
     this.isDemo = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2595,6 +2796,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     required String name,
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
+    this.locality = const Value.absent(),
+    this.city = const Value.absent(),
+    this.region = const Value.absent(),
+    this.country = const Value.absent(),
+    this.formattedAddress = const Value.absent(),
     this.isConfirmed = const Value.absent(),
     this.isDemo = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2607,6 +2813,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     Expression<String>? name,
     Expression<double>? latitude,
     Expression<double>? longitude,
+    Expression<String>? locality,
+    Expression<String>? city,
+    Expression<String>? region,
+    Expression<String>? country,
+    Expression<String>? formattedAddress,
     Expression<bool>? isConfirmed,
     Expression<bool>? isDemo,
     Expression<int>? rowid,
@@ -2618,6 +2829,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
       if (name != null) 'name': name,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
+      if (locality != null) 'locality': locality,
+      if (city != null) 'city': city,
+      if (region != null) 'region': region,
+      if (country != null) 'country': country,
+      if (formattedAddress != null) 'formatted_address': formattedAddress,
       if (isConfirmed != null) 'is_confirmed': isConfirmed,
       if (isDemo != null) 'is_demo': isDemo,
       if (rowid != null) 'rowid': rowid,
@@ -2631,6 +2847,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     Value<String>? name,
     Value<double?>? latitude,
     Value<double?>? longitude,
+    Value<String?>? locality,
+    Value<String?>? city,
+    Value<String?>? region,
+    Value<String?>? country,
+    Value<String?>? formattedAddress,
     Value<bool>? isConfirmed,
     Value<bool>? isDemo,
     Value<int>? rowid,
@@ -2642,6 +2863,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
       name: name ?? this.name,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      locality: locality ?? this.locality,
+      city: city ?? this.city,
+      region: region ?? this.region,
+      country: country ?? this.country,
+      formattedAddress: formattedAddress ?? this.formattedAddress,
       isConfirmed: isConfirmed ?? this.isConfirmed,
       isDemo: isDemo ?? this.isDemo,
       rowid: rowid ?? this.rowid,
@@ -2669,6 +2895,21 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     if (longitude.present) {
       map['longitude'] = Variable<double>(longitude.value);
     }
+    if (locality.present) {
+      map['locality'] = Variable<String>(locality.value);
+    }
+    if (city.present) {
+      map['city'] = Variable<String>(city.value);
+    }
+    if (region.present) {
+      map['region'] = Variable<String>(region.value);
+    }
+    if (country.present) {
+      map['country'] = Variable<String>(country.value);
+    }
+    if (formattedAddress.present) {
+      map['formatted_address'] = Variable<String>(formattedAddress.value);
+    }
     if (isConfirmed.present) {
       map['is_confirmed'] = Variable<bool>(isConfirmed.value);
     }
@@ -2690,6 +2931,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
           ..write('name: $name, ')
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
+          ..write('locality: $locality, ')
+          ..write('city: $city, ')
+          ..write('region: $region, ')
+          ..write('country: $country, ')
+          ..write('formattedAddress: $formattedAddress, ')
           ..write('isConfirmed: $isConfirmed, ')
           ..write('isDemo: $isDemo, ')
           ..write('rowid: $rowid')
@@ -14734,6 +14980,11 @@ typedef $$PlacesTableCreateCompanionBuilder =
       required String name,
       Value<double?> latitude,
       Value<double?> longitude,
+      Value<String?> locality,
+      Value<String?> city,
+      Value<String?> region,
+      Value<String?> country,
+      Value<String?> formattedAddress,
       Value<bool> isConfirmed,
       Value<bool> isDemo,
       Value<int> rowid,
@@ -14746,6 +14997,11 @@ typedef $$PlacesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<double?> latitude,
       Value<double?> longitude,
+      Value<String?> locality,
+      Value<String?> city,
+      Value<String?> region,
+      Value<String?> country,
+      Value<String?> formattedAddress,
       Value<bool> isConfirmed,
       Value<bool> isDemo,
       Value<int> rowid,
@@ -14810,6 +15066,31 @@ class $$PlacesTableFilterComposer
 
   ColumnFilters<double> get longitude => $composableBuilder(
     column: $table.longitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get locality => $composableBuilder(
+    column: $table.locality,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get city => $composableBuilder(
+    column: $table.city,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get region => $composableBuilder(
+    column: $table.region,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get country => $composableBuilder(
+    column: $table.country,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get formattedAddress => $composableBuilder(
+    column: $table.formattedAddress,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14888,6 +15169,31 @@ class $$PlacesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get locality => $composableBuilder(
+    column: $table.locality,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get city => $composableBuilder(
+    column: $table.city,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get region => $composableBuilder(
+    column: $table.region,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get country => $composableBuilder(
+    column: $table.country,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get formattedAddress => $composableBuilder(
+    column: $table.formattedAddress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isConfirmed => $composableBuilder(
     column: $table.isConfirmed,
     builder: (column) => ColumnOrderings(column),
@@ -14925,6 +15231,23 @@ class $$PlacesTableAnnotationComposer
 
   GeneratedColumn<double> get longitude =>
       $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<String> get locality =>
+      $composableBuilder(column: $table.locality, builder: (column) => column);
+
+  GeneratedColumn<String> get city =>
+      $composableBuilder(column: $table.city, builder: (column) => column);
+
+  GeneratedColumn<String> get region =>
+      $composableBuilder(column: $table.region, builder: (column) => column);
+
+  GeneratedColumn<String> get country =>
+      $composableBuilder(column: $table.country, builder: (column) => column);
+
+  GeneratedColumn<String> get formattedAddress => $composableBuilder(
+    column: $table.formattedAddress,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isConfirmed => $composableBuilder(
     column: $table.isConfirmed,
@@ -14994,6 +15317,11 @@ class $$PlacesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<double?> latitude = const Value.absent(),
                 Value<double?> longitude = const Value.absent(),
+                Value<String?> locality = const Value.absent(),
+                Value<String?> city = const Value.absent(),
+                Value<String?> region = const Value.absent(),
+                Value<String?> country = const Value.absent(),
+                Value<String?> formattedAddress = const Value.absent(),
                 Value<bool> isConfirmed = const Value.absent(),
                 Value<bool> isDemo = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -15004,6 +15332,11 @@ class $$PlacesTableTableManager
                 name: name,
                 latitude: latitude,
                 longitude: longitude,
+                locality: locality,
+                city: city,
+                region: region,
+                country: country,
+                formattedAddress: formattedAddress,
                 isConfirmed: isConfirmed,
                 isDemo: isDemo,
                 rowid: rowid,
@@ -15016,6 +15349,11 @@ class $$PlacesTableTableManager
                 required String name,
                 Value<double?> latitude = const Value.absent(),
                 Value<double?> longitude = const Value.absent(),
+                Value<String?> locality = const Value.absent(),
+                Value<String?> city = const Value.absent(),
+                Value<String?> region = const Value.absent(),
+                Value<String?> country = const Value.absent(),
+                Value<String?> formattedAddress = const Value.absent(),
                 Value<bool> isConfirmed = const Value.absent(),
                 Value<bool> isDemo = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -15026,6 +15364,11 @@ class $$PlacesTableTableManager
                 name: name,
                 latitude: latitude,
                 longitude: longitude,
+                locality: locality,
+                city: city,
+                region: region,
+                country: country,
+                formattedAddress: formattedAddress,
                 isConfirmed: isConfirmed,
                 isDemo: isDemo,
                 rowid: rowid,

@@ -13,6 +13,7 @@ class MediaScanScreen extends ConsumerWidget {
     final state = ref.watch(memoryControllerProvider);
     final scanning = state.scanState == ScanState.scanning;
     final complete = state.scanState == ScanState.completed;
+    final blocked = scanning || state.isRestoring || state.restoreFailed;
     return Scaffold(
       appBar: AppBar(title: const Text('Scan gallery')),
       body: SafeArea(
@@ -103,7 +104,7 @@ class MediaScanScreen extends ConsumerWidget {
                 const SizedBox(height: 26),
                 if (!complete)
                   FilledButton.icon(
-                    onPressed: scanning
+                    onPressed: blocked
                         ? null
                         : () => ref
                               .read(memoryControllerProvider.notifier)
@@ -119,9 +120,31 @@ class MediaScanScreen extends ConsumerWidget {
                     icon: const Icon(Icons.auto_stories_outlined),
                     label: const Text('Open story timeline'),
                   ),
+                if (!blocked && state.galleryAccess == GalleryAccess.denied)
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final controller = ref.read(
+                        memoryControllerProvider.notifier,
+                      );
+                      final access = await controller.requestGalleryAccess();
+                      if (access != GalleryAccess.denied) {
+                        await controller.scanGallery();
+                      }
+                    },
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Allow photo access'),
+                  ),
+                if (complete)
+                  OutlinedButton.icon(
+                    onPressed: () => ref
+                        .read(memoryControllerProvider.notifier)
+                        .scanGallery(),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Scan for new photos'),
+                  ),
                 if (state.galleryAccess == GalleryAccess.limited)
                   OutlinedButton.icon(
-                    onPressed: scanning
+                    onPressed: blocked
                         ? null
                         : () => ref
                               .read(memoryControllerProvider.notifier)

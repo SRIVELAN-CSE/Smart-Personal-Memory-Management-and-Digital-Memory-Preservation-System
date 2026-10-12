@@ -155,6 +155,11 @@ class MemorySnapshotRepository {
           latitude: row.latitude,
           longitude: row.longitude,
           isConfirmed: row.isConfirmed,
+          locality: row.locality,
+          city: row.city,
+          region: row.region,
+          country: row.country,
+          formattedAddress: row.formattedAddress,
         ),
     };
     final notes = (await _database.select(_database.notes).get())
@@ -331,7 +336,7 @@ class MemorySnapshotRepository {
     };
     final placesById = <String, MemoryPlace>{
       for (final event in snapshot.events)
-        if (event.place case final place?) place.id: place,
+        if (event.resolvedPlace case final place?) place.id: place,
     };
 
     await _database.transaction(() async {
@@ -391,6 +396,11 @@ class MemorySnapshotRepository {
                     latitude: Value(place.latitude),
                     longitude: Value(place.longitude),
                     isConfirmed: Value(place.isConfirmed),
+                    locality: Value(place.locality),
+                    city: Value(place.city),
+                    region: Value(place.region),
+                    country: Value(place.country),
+                    formattedAddress: Value(place.formattedAddress),
                     createdAt: Value(now),
                     updatedAt: Value(now),
                   ),
@@ -432,7 +442,7 @@ class MemorySnapshotRepository {
                 description: Value(event.description),
                 startAt: event.startAt.toUtc(),
                 endAt: event.endAt.toUtc(),
-                placeId: Value(event.place?.id),
+                placeId: Value(event.resolvedPlace?.id),
                 coverMediaId: Value(event.coverMediaId),
                 isCoverUserSelected: Value(event.coverConfirmed),
                 isFavourite: Value(event.isFavourite),
@@ -490,8 +500,9 @@ class MemorySnapshotRepository {
     });
   }
 
-  Future<void> _deleteAllDerivedDataNow() {
-    return _database.transaction(() async {
+  Future<void> _deleteAllDerivedDataNow() async {
+    await _database.deleteMigrationBackup();
+    await _database.transaction(() async {
       // Explicit child-to-parent order keeps foreign-key enforcement enabled.
       await _database.delete(_database.graphEdges).go();
       await _database.delete(_database.graphNodes).go();
@@ -741,7 +752,7 @@ class MemorySnapshotRepository {
             person.id,
           ),
       for (final event in snapshot.events)
-        if (event.place case final place?)
+        if (event.resolvedPlace case final place?)
           _edge(
             event.id,
             _runtimeId('event', event.id),

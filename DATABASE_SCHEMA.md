@@ -1,6 +1,6 @@
 # Database schema
 
-Smart Memory uses Drift over SQLite. Schema version 1 contains 21 normalized tables.
+Smart Memory uses Drift over SQLite. Schema version 4 contains 21 normalized tables.
 Timestamps represent UTC instants; Drift may materialize them in the host local time
 zone, so domain comparisons normalize with `toUtc()`.
 
@@ -81,7 +81,12 @@ future hardening option.
 
 ## Migration strategy
 
-- `schemaVersion` starts at 1.
+- Current `schemaVersion` is 4. Versions 1–3 migrate additively in a transaction;
+  existing rows and extra legacy columns are preserved. Version 4 adds nullable
+  `locality`, `city`, `region`, `country`, and `formatted_address` to `places`.
+  Existing location names and coordinates are retained without requiring geocoding.
+  Production keeps a `before-v4` backup before upgrading. Unsupported schemas
+  fail without resetting saved data.
 - `createAll()` creates the initial normalized schema and annotated indexes.
 - `PRAGMA foreign_keys = ON` runs before use; production also enables WAL and a busy
   timeout in the background database connection.

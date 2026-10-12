@@ -35,6 +35,18 @@ gallery original.
   debugger/hot reload; the main manifest and application code add no network client
   or upload path.
 
+## Photo location names
+
+Capture coordinates are read from accessible gallery media and stored locally.
+The optional device geocoding service translates these coordinates into place
+names; that operating-system service may use its own network provider. A place
+name is not required: coordinates remain usable offline, and photos without GPS
+can be assigned a manual place. The app never substitutes the device's current
+location for a photo's capture location.
+
+Hidden events are excluded from the personal memory graph, and their locations
+are concealed on timeline cards.
+
 ## Sensitivity gate
 
 Sensitivity is user-controlled in the MVP; the app does not infer it from content.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/memory_models.dart';
+import '../../../../routing/memory_destination.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/memory_cover.dart';
 import '../../../../core/widgets/score_chip.dart';
@@ -17,7 +18,7 @@ class MemoryEventCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.push('/event/${event.id}'),
+        onTap: () => context.push(eventRoute(event.id)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -36,7 +37,7 @@ class MemoryEventCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          event.title,
+                          event.isSensitive ? 'Sensitive memory' : event.title,
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w800),
                         ),
@@ -47,13 +48,32 @@ class MemoryEventCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    [
-                      formatMemoryDate(event.startAt),
-                      if (event.place != null) event.place!.name,
-                    ].join(' • '),
+                    [formatMemoryDate(event.startAt)].join(' • '),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.place_outlined,
+                        size: 17,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          event.isSensitive
+                              ? 'Location hidden'
+                              : event.locationLabel,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Wrap(
@@ -106,7 +126,11 @@ class MemoryEventCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      event.hasStory ? event.story! : _templateStory(event),
+                      event.isSensitive
+                          ? 'Open this memory to view its private context.'
+                          : event.hasStory
+                          ? event.story!
+                          : _templateStory(event),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(

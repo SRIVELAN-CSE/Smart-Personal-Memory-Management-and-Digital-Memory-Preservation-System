@@ -4,13 +4,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/memory_cover.dart';
+import '../../../core/widgets/memory_location.dart';
 import '../../../core/widgets/score_chip.dart';
 import 'memory_controller.dart';
 
 class EventDetailScreen extends ConsumerStatefulWidget {
-  const EventDetailScreen({required this.eventId, super.key});
+  const EventDetailScreen({
+    required this.eventId,
+    this.selectedMediaId,
+    super.key,
+  });
 
   final String eventId;
+  final String? selectedMediaId;
 
   @override
   ConsumerState<EventDetailScreen> createState() => _EventDetailScreenState();
@@ -67,8 +73,21 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         children: [
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 900),
-            child: MemoryCover(event: event, height: 260),
+            child: MemoryCover(
+              event: event,
+              height: 260,
+              mediaId: widget.selectedMediaId,
+            ),
           ),
+          if (widget.selectedMediaId != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                event.media.any((m) => m.id == widget.selectedMediaId)
+                    ? 'Selected media ${event.media.indexWhere((m) => m.id == widget.selectedMediaId) + 1} of ${event.media.length}'
+                    : 'This photo is no longer in this event. Showing the event cover.',
+              ),
+            ),
           const SizedBox(height: 20),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,20 +114,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               context,
             ).textTheme.titleMedium?.copyWith(color: scheme.onSurfaceVariant),
           ),
-          if (event.place != null) ...[
-            const SizedBox(height: 5),
-            Row(
-              children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  size: 18,
-                  color: scheme.primary,
-                ),
-                const SizedBox(width: 6),
-                Expanded(child: Text(event.place!.name)),
-              ],
-            ),
-          ],
+          const SizedBox(height: 12),
+          MemoryLocation(
+            event: event,
+            onEdit: () => context.push('/event/${event.id}/edit'),
+          ),
           const SizedBox(height: 16),
           Wrap(
             spacing: 8,

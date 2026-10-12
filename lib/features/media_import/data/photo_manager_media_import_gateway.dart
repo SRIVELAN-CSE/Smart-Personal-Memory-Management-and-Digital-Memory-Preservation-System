@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../../core/models/memory_models.dart';
+import '../../../core/models/capture_location.dart';
 import '../../preprocessing/domain/ocr_gateway.dart';
 import '../domain/media_import_gateway.dart';
 
@@ -41,6 +42,7 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
   @override
   Future<List<MediaItem>> scan({
     Set<String> knownAssetIdentifiers = const {},
+    Set<String> refreshLocationAssetIdentifiers = const {},
     void Function(MediaScanProgress progress)? onProgress,
   }) async {
     final access = await currentAccess();
@@ -81,7 +83,9 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
       if (assets.isEmpty) break;
       for (final asset in assets) {
         processed++;
-        if (knownAssetIdentifiers.contains(asset.id)) {
+        final alreadyImported = knownAssetIdentifiers.contains(asset.id);
+        if (alreadyImported &&
+            !refreshLocationAssetIdentifiers.contains(asset.id)) {
           onProgress?.call(
             MediaScanProgress(
               processed: processed,
@@ -93,6 +97,34 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
         }
 
         try {
+          final location = await readCaptureLocation(asset);
+          if (alreadyImported) {
+            onProgress?.call(
+              MediaScanProgress(
+                processed: processed,
+                total: total,
+                currentStage: 'Checking saved photo locations',
+              ),
+            );
+            if (location != null) {
+              // The controller merges only coordinates into the saved item.
+              imported.add(
+                MediaItem(
+                  id: 'media_${_stableFingerprint(Uint8List.fromList(asset.id.codeUnits))}',
+                  assetIdentifier: asset.id,
+                  kind: asset.type == AssetType.video
+                      ? MediaKind.video
+                      : MediaKind.image,
+                  capturedAt: asset.createDateTime,
+                  width: asset.width,
+                  height: asset.height,
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                ),
+              );
+            }
+            continue;
+          }
           onProgress?.call(
             MediaScanProgress(
               processed: processed,
@@ -137,8 +169,8 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
               height: asset.height,
               duration: asset.videoDuration,
               fileSize: fileSize,
-              latitude: asset.latitude,
-              longitude: asset.longitude,
+              latitude: location?.latitude,
+              longitude: location?.longitude,
               ocrText: ocrText,
               fingerprint: thumbnail == null
                   ? ''
@@ -158,6 +190,21 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
       }
     }
     return imported;
+  }
+
+  /// Android 10+ does not populate AssetEntity's synchronous GPS getters.
+  static Future<CaptureLocation?> readCaptureLocation(AssetEntity asset) async {
+    try {
+      final coordinates = await asset.latlngAsync();
+      return CaptureLocation.fromCoordinates(
+        coordinates?.latitude,
+        coordinates?.longitude,
+      );
+    } on Object {
+      // Missing permission, stripped EXIF, or an unreadable original must not
+      // prevent the rest of a photo from being imported.
+      return null;
+    }
   }
 
   GalleryAccess _mapAccess(PermissionState state) {

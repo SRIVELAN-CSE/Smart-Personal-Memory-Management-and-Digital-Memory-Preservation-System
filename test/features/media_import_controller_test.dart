@@ -142,6 +142,7 @@ class _FakeMediaImportGateway implements MediaImportGateway {
   @override
   Future<List<MediaItem>> scan({
     Set<String> knownAssetIdentifiers = const {},
+    Set<String> refreshLocationAssetIdentifiers = const {},
     void Function(MediaScanProgress progress)? onProgress,
   }) async {
     lastKnownAssetIdentifiers = Set.unmodifiable(knownAssetIdentifiers);

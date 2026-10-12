@@ -31,11 +31,13 @@ class ScoreChip extends StatelessWidget {
             Icon(icon, size: 16, color: color),
             const SizedBox(width: 6),
           ],
-          Text(
-            '$label ${formatScore(value)}',
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: color),
+          Flexible(
+            child: Text(
+              '$label ${formatScore(value)}',
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: color),
+            ),
           ),
         ],
       ),

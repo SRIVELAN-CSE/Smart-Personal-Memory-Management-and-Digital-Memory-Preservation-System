@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/security/device_security_service.dart';
+import '../../event_management/presentation/memory_controller.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -23,13 +24,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _continueToApp() async {
     setState(() => _unlockFailed = false);
     await Future<void>.delayed(const Duration(milliseconds: 650));
+    if (!mounted) return;
     final security = ref.read(deviceSecurityServiceProvider);
     final gateEnabled = await security.isBiometricGateEnabled();
     if (gateEnabled && !await security.authenticateForEntry()) {
       if (mounted) setState(() => _unlockFailed = true);
       return;
     }
-    if (mounted) context.go('/onboarding');
+    if (!mounted) return;
+    await ref.read(memoryControllerProvider.notifier).ensureRestored();
+    if (!mounted) return;
+    final state = ref.read(memoryControllerProvider);
+    context.go(
+      state.restoreFailed ||
+              state.events.isNotEmpty ||
+              state.unassignedMedia.isNotEmpty
+          ? '/home'
+          : '/onboarding',
+    );
   }
 
   @override

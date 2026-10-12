@@ -46,7 +46,11 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
       _initialized = true;
       _titleController = TextEditingController(text: event.title);
       _descriptionController = TextEditingController(text: event.description);
-      _placeController = TextEditingController(text: event.place?.name);
+      _placeController = TextEditingController(
+        text: event.resolvedPlace?.name == event.primaryCaptureLocation?.label
+            ? null
+            : event.resolvedPlace?.name,
+      );
       _splitIndex = event.media.length > 1 ? event.media.length ~/ 2 : 1;
     }
     return Scaffold(
@@ -94,8 +98,9 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
           TextField(
             controller: _placeController,
             decoration: const InputDecoration(
-              labelText: 'Confirmed place',
-              hintText: 'Optional manual place name',
+              labelText: 'Place name',
+              hintText: 'Add or correct where this event happened',
+              helperText: 'Photo GPS stays attached to each original memory.',
               prefixIcon: Icon(Icons.place_outlined),
             ),
           ),

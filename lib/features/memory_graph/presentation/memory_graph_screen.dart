@@ -5,6 +5,7 @@ import 'package:graphview/GraphView.dart';
 
 import '../../../core/models/memory_models.dart';
 import '../../../core/widgets/app_navigation.dart';
+import '../domain/memory_graph_data.dart';
 import '../../event_management/presentation/memory_controller.dart';
 
 class MemoryGraphScreen extends ConsumerWidget {
@@ -12,11 +13,22 @@ class MemoryGraphScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final events = ref.watch(memoryControllerProvider).events;
+    final library = ref.watch(memoryControllerProvider);
+    final events = library.events.where((event) => !event.isSensitive).toList();
     return AppNavigation(
       selectedIndex: 2,
       title: 'Personal memory graph',
-      child: events.isEmpty
+      child: library.isRestoring
+          ? const Center(child: CircularProgressIndicator())
+          : library.restoreFailed
+          ? Center(
+              child: TextButton(
+                onPressed: () =>
+                    ref.read(memoryControllerProvider.notifier).retryRestore(),
+                child: const Text('Retry loading memories'),
+              ),
+            )
+          : events.isEmpty
           ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -51,15 +63,7 @@ class MemoryGraphScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Expanded(
-                  child: InteractiveViewer(
-                    constrained: false,
-                    boundaryMargin: const EdgeInsets.all(160),
-                    minScale: 0.35,
-                    maxScale: 2.5,
-                    child: _GraphCanvas(events: events),
-                  ),
-                ),
+                Expanded(child: _GraphCanvas(events: events)),
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Text(
@@ -74,74 +78,55 @@ class MemoryGraphScreen extends ConsumerWidget {
   }
 }
 
-class _GraphCanvas extends StatelessWidget {
-  _GraphCanvas({required this.events}) {
-    for (final event in events.take(8)) {
-      final eventNode = Node.Id('event:${event.id}');
-      graph.addNode(eventNode);
-      labels[eventNode.key!.value as String] = event.title;
-      for (final media in event.media.take(5)) {
-        final node = Node.Id('media:${event.id}:${media.id}');
-        labels[node.key!.value as String] = media.kind.name;
-        graph.addEdge(eventNode, node);
-      }
-      for (final person in event.people.take(5)) {
-        final node = Node.Id('person:${event.id}:${person.id}');
-        labels[node.key!.value as String] = person.name;
-        graph.addEdge(eventNode, node);
-      }
-      if (event.place != null) {
-        final node = Node.Id('place:${event.id}:${event.place!.id}');
-        labels[node.key!.value as String] = event.place!.name;
-        graph.addEdge(eventNode, node);
-      }
-      if (event.hasStory) {
-        final node = Node.Id('note:${event.id}');
-        labels[node.key!.value as String] = 'Personal story';
-        graph.addEdge(eventNode, node);
-      }
-      if (event.hasVoiceNote) {
-        final node = Node.Id('voice:${event.id}');
-        labels[node.key!.value as String] = 'Voice note';
-        graph.addEdge(eventNode, node);
-      }
+class _GraphCanvas extends ConsumerWidget {
+  _GraphCanvas({required List<MemoryEvent> events})
+    : data = MemoryGraphData(events) {
+    for (final node in data.nodes.values) {
+      graph.addNode(Node.Id(node.key));
+    }
+    for (final edge in data.edges) {
+      graph.addEdge(Node.Id(edge.$1), Node.Id(edge.$2));
     }
   }
-
-  final List<MemoryEvent> events;
+  final MemoryGraphData data;
   final Graph graph = Graph();
-  final Map<String, String> labels = {};
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GraphView.builder(
       graph: graph,
+      autoZoomToFit: true,
       algorithm: FruchtermanReingoldAlgorithm(
         FruchtermanReingoldConfiguration(iterations: 180, repulsionRate: 0.35),
       ),
       builder: (node) {
-        final id = node.key?.value.toString() ?? '';
-        final type = id.split(':').first;
-        final eventId = id.split(':').length > 1 ? id.split(':')[1] : '';
-        final style = _nodeStyle(type);
+        final item = data.nodes[node.key?.value];
+        if (item == null) return const SizedBox.shrink();
+        final style = _nodeStyle(item.kind);
         return Material(
           color: style.color,
           borderRadius: BorderRadius.circular(18),
-          elevation: type == 'event' ? 5 : 1,
+          elevation: item.kind == 'event' ? 5 : 1,
           child: InkWell(
+            key: ValueKey('graph/${item.key}'),
             borderRadius: BorderRadius.circular(18),
             onTap: () {
-              if (type == 'event') {
-                context.push('/event/$eventId');
-              } else if (type == 'person') {
-                context.push('/event/$eventId/people');
+              final target = item.target.resolve(
+                ref.read(memoryControllerProvider).events,
+              );
+              if (target == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('This memory is no longer available.'),
+                  ),
+                );
               } else {
-                _showNodeDetails(context, id, type, eventId);
+                context.push(target.route);
               }
             },
             child: Container(
               constraints: BoxConstraints(
-                maxWidth: type == 'event' ? 170 : 128,
+                maxWidth: item.kind == 'event' ? 170 : 128,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
@@ -151,7 +136,7 @@ class _GraphCanvas extends StatelessWidget {
                   const SizedBox(width: 7),
                   Flexible(
                     child: Text(
-                      labels[id] ?? type,
+                      item.label,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -177,61 +162,6 @@ class _GraphCanvas extends StatelessWidget {
     'voice' => (color: Colors.pink, icon: Icons.graphic_eq),
     _ => (color: Colors.indigo, icon: Icons.note_outlined),
   };
-
-  void _showNodeDetails(
-    BuildContext context,
-    String id,
-    String type,
-    String eventId,
-  ) {
-    final event = events.where((item) => item.id == eventId).firstOrNull;
-    final entityId = id.split(':').skip(2).join(':');
-    final media = event?.media
-        .where((item) => item.id == entityId)
-        .firstOrNull;
-    final detail = switch (type) {
-      'media' when media != null =>
-        '${media.kind.name} • ${media.width} × ${media.height} • ${media.capturedAt.toLocal()}',
-      'place' => event?.place?.name ?? 'Place linked to this event',
-      'note' => event?.story ?? 'Personal story linked to this event',
-      'voice' => 'App-private voice-note reference linked to this event.',
-      _ => 'Related memory node',
-    };
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                labels[id] ?? type,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 10),
-              Text(detail),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: event == null
-                    ? null
-                    : () {
-                        Navigator.pop(context);
-                        context.push('/event/${event.id}');
-                      },
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Open related event'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _LegendDot extends StatelessWidget {

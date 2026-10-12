@@ -20,6 +20,12 @@ class DeviceSecurityService {
   final LocalAuthentication _authentication;
   final FlutterSecureStorage _secureStorage;
 
+  Future<String?> readThemePreference() =>
+      _secureStorage.read(key: 'theme_mode');
+
+  Future<void> saveThemePreference(String mode) =>
+      _secureStorage.write(key: 'theme_mode', value: mode);
+
   Future<bool> isBiometricGateEnabled() async {
     try {
       return await _secureStorage.read(key: 'biometric_gate_enabled') == 'true';

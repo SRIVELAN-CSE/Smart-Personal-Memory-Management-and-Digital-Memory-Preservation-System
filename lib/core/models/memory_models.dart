@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'capture_location.dart';
+
 enum MediaKind { image, video }
 
 enum ContentOrigin { automatic, userConfirmed, demo }
@@ -48,6 +50,25 @@ class MediaItem {
   final String ocrText;
   final String fingerprint;
   final Uint8List? thumbnailBytes;
+
+  CaptureLocation? get captureLocation =>
+      CaptureLocation.fromCoordinates(latitude, longitude);
+
+  MediaItem withCaptureLocation(CaptureLocation location) => MediaItem(
+    id: id,
+    assetIdentifier: assetIdentifier,
+    kind: kind,
+    capturedAt: capturedAt,
+    width: width,
+    height: height,
+    duration: duration,
+    fileSize: fileSize,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    ocrText: ocrText,
+    fingerprint: fingerprint,
+    thumbnailBytes: thumbnailBytes,
+  );
 }
 
 class MemoryPerson {
@@ -64,6 +85,11 @@ class MemoryPlace {
     this.latitude,
     this.longitude,
     this.isConfirmed = false,
+    this.locality,
+    this.city,
+    this.region,
+    this.country,
+    this.formattedAddress,
   });
 
   final String id;
@@ -71,6 +97,20 @@ class MemoryPlace {
   final double? latitude;
   final double? longitude;
   final bool isConfirmed;
+  final String? locality;
+  final String? city;
+  final String? region;
+  final String? country;
+  final String? formattedAddress;
+
+  String get searchText => [
+    name,
+    locality,
+    city,
+    region,
+    country,
+    formattedAddress,
+  ].whereType<String>().join(' ');
 }
 
 class ScoreFactor {
@@ -173,6 +213,48 @@ class MemoryEvent {
       description != null && description!.trim().isNotEmpty;
   bool get hasStory => story != null && story!.trim().isNotEmpty;
   bool get hasVoiceNote => voiceNotePath != null && voiceNotePath!.isNotEmpty;
+
+  CaptureLocation? get primaryCaptureLocation {
+    final ordered = media.where((item) => item.captureLocation != null).toList()
+      ..sort((a, b) {
+        final time = a.capturedAt.compareTo(b.capturedAt);
+        return time == 0 ? a.id.compareTo(b.id) : time;
+      });
+    return CaptureLocation.representative(
+      ordered.map((item) => item.captureLocation!),
+    );
+  }
+
+  /// Keep a manual place; otherwise derive the place from the current media.
+  /// This also handles older imports and split/merge/remove-media corrections.
+  MemoryPlace? get resolvedPlace {
+    if (place?.isConfirmed == true && place!.name.trim().isNotEmpty) {
+      return place;
+    }
+    final location = primaryCaptureLocation;
+    if (location == null) return null;
+    if (place != null &&
+        place!.name.trim().isNotEmpty &&
+        place!.latitude == location.latitude &&
+        place!.longitude == location.longitude) {
+      return place;
+    }
+    return MemoryPlace(
+      id: 'photo_location_$id',
+      name: location.label,
+      latitude: location.latitude,
+      longitude: location.longitude,
+    );
+  }
+
+  String get locationLabel => resolvedPlace?.name ?? 'Location unavailable';
+
+  MemoryEvent withResolvedPlace() {
+    final resolved = resolvedPlace;
+    return identical(resolved, place)
+        ? this
+        : copyWith(place: resolved, clearPlace: resolved == null);
+  }
 
   MemoryEvent copyWith({
     String? title,

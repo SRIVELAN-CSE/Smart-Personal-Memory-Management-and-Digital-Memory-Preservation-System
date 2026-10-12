@@ -18,6 +18,8 @@ import '../../prediction/domain/services/rediscovery_risk_predictor.dart';
 import '../../prediction/domain/services/significance_predictor.dart';
 import '../../preprocessing/data/ml_kit_ocr_gateway.dart';
 import '../data/demo_memory_data.dart';
+import '../data/device_place_name_gateway.dart';
+import '../domain/services/place_name_gateway.dart';
 
 enum ScanState { idle, requestingPermission, scanning, completed, failed }
 
@@ -33,6 +35,8 @@ class MemoryAppState {
     this.errorMessage,
     this.demoMode = false,
     this.isRestoring = false,
+    this.restoreFailed = false,
+    this.saveFailed = false,
   });
 
   final List<MemoryEvent> events;
@@ -45,6 +49,8 @@ class MemoryAppState {
   final String? errorMessage;
   final bool demoMode;
   final bool isRestoring;
+  final bool restoreFailed;
+  final bool saveFailed;
 
   MemoryAppState copyWith({
     List<MemoryEvent>? events,
@@ -58,6 +64,8 @@ class MemoryAppState {
     bool clearError = false,
     bool? demoMode,
     bool? isRestoring,
+    bool? restoreFailed,
+    bool? saveFailed,
   }) {
     return MemoryAppState(
       events: events ?? this.events,
@@ -70,6 +78,8 @@ class MemoryAppState {
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       demoMode: demoMode ?? this.demoMode,
       isRestoring: isRestoring ?? this.isRestoring,
+      restoreFailed: restoreFailed ?? this.restoreFailed,
+      saveFailed: saveFailed ?? this.saveFailed,
     );
   }
 }
@@ -90,12 +100,20 @@ final memorySnapshotRepositoryProvider = Provider<MemorySnapshotRepository>((
   return MemorySnapshotRepository(ref.watch(appDatabaseProvider));
 });
 
+final placeNameGatewayProvider = Provider<PlaceNameGateway>((ref) {
+  return DevicePlaceNameGateway();
+});
+
 class MemoryController extends Notifier<MemoryAppState> {
   var _revision = 0;
+  Future<void>? _restoration;
+  bool _disposed = false;
+  int _scanGeneration = 0;
 
   @override
   MemoryAppState build() {
-    Future<void>.microtask(_restorePersistedState);
+    ref.onDispose(() => _disposed = true);
+    _restoration = Future<void>.microtask(_restorePersistedState);
     return const MemoryAppState(isRestoring: true);
   }
 
@@ -106,21 +124,67 @@ class MemoryController extends Notifier<MemoryAppState> {
     final revision = _revision;
     try {
       final snapshot = await _repository.load();
-      if (revision != _revision) return;
+      if (_disposed || revision != _revision) return;
       state = state.copyWith(
-        events: snapshot.events,
+        events: snapshot.events
+            .map((event) => event.withResolvedPlace())
+            .toList(),
         recommendations: snapshot.recommendations,
         unassignedMedia: snapshot.unassignedMedia,
         isRestoring: false,
+        restoreFailed: false,
         clearError: true,
       );
     } on Object {
-      if (revision != _revision) return;
-      state = state.copyWith(isRestoring: false);
+      if (_disposed || revision != _revision) return;
+      state = state.copyWith(
+        isRestoring: false,
+        restoreFailed: true,
+        errorMessage:
+            'Your saved memories could not be opened. They have not '
+            'been deleted. Retry loading or install the latest compatible update.',
+      );
     }
   }
 
+  Future<void> ensureRestored() async => await _restoration;
+
+  Future<void> retryRestore() async {
+    if (state.isRestoring) return;
+    state = state.copyWith(isRestoring: true, clearError: true);
+    _restoration = _restorePersistedState();
+    await _restoration;
+  }
+
+  Future<void> retrySave() async {
+    try {
+      await _persistCurrentState();
+      if (!_disposed) {
+        state = state.copyWith(saveFailed: false, clearError: true);
+      }
+    } on Object {
+      _reportSaveFailure();
+    }
+  }
+
+  void _reportSaveFailure() {
+    if (_disposed) return;
+    state = state.copyWith(
+      saveFailed: true,
+      errorMessage:
+          'The latest changes could not be saved. Keep the app open '
+          'and retry saving.',
+    );
+  }
+
   Future<void> enableDemoMode() async {
+    await ensureRestored();
+    if (state.restoreFailed ||
+        state.events.any((event) => !event.isDemo) ||
+        state.unassignedMedia.isNotEmpty) {
+      return;
+    }
+    _scanGeneration++;
     _revision++;
     state = MemoryAppState(
       events: [DemoMemoryData.event],
@@ -138,6 +202,8 @@ class MemoryController extends Notifier<MemoryAppState> {
   }
 
   Future<GalleryAccess> requestGalleryAccess() async {
+    await ensureRestored();
+    if (state.restoreFailed) return GalleryAccess.denied;
     _revision++;
     state = state.copyWith(
       scanState: ScanState.requestingPermission,
@@ -161,6 +227,10 @@ class MemoryController extends Notifier<MemoryAppState> {
   }
 
   Future<void> scanGallery() async {
+    await _restoration;
+    if (state.restoreFailed || state.scanState == ScanState.scanning) return;
+    final generation = ++_scanGeneration;
+    bool isCurrentScan() => !_disposed && generation == _scanGeneration;
     _revision++;
     state = state.copyWith(
       scanState: ScanState.scanning,
@@ -174,6 +244,17 @@ class MemoryController extends Notifier<MemoryAppState> {
     try {
       final gateway = ref.read(mediaImportGatewayProvider);
       final access = await gateway.currentAccess();
+      if (!isCurrentScan()) return;
+      if (access == GalleryAccess.denied) {
+        state = state.copyWith(
+          galleryAccess: access,
+          scanState: ScanState.failed,
+          errorMessage:
+              'Photo access is not allowed. Grant gallery access to '
+              'scan; your saved memories remain available.',
+        );
+        return;
+      }
       state = state.copyWith(galleryAccess: access);
       await _repository.recordGalleryAccess(access.name);
       scanId = await _repository.beginScan(permissionMode: access.name);
@@ -185,9 +266,18 @@ class MemoryController extends Notifier<MemoryAppState> {
               .toSet()
             ..addAll(state.unassignedMedia.map((item) => item.assetIdentifier))
             ..addAll(await _repository.knownAssetIdentifiers());
-      final imported = await gateway.scan(
+      final knownMedia = [
+        ...state.events.expand((event) => event.media),
+        ...state.unassignedMedia,
+      ];
+      final scanned = await gateway.scan(
         knownAssetIdentifiers: knownIds,
+        refreshLocationAssetIdentifiers: knownMedia
+            .where((item) => item.captureLocation == null)
+            .map((item) => item.assetIdentifier)
+            .toSet(),
         onProgress: (progress) {
+          if (!isCurrentScan()) return;
           discoveredCount = progress.total;
           state = state.copyWith(
             scanState: ScanState.scanning,
@@ -196,25 +286,61 @@ class MemoryController extends Notifier<MemoryAppState> {
           );
         },
       );
+      if (!isCurrentScan() || state.scanState != ScanState.scanning) return;
+      final imported = scanned
+          .where((item) => !knownIds.contains(item.assetIdentifier))
+          .toList();
+      final refreshedByAsset = {
+        for (final item in scanned)
+          if (knownIds.contains(item.assetIdentifier) &&
+              item.captureLocation != null)
+            item.assetIdentifier: item.captureLocation!,
+      };
+      MediaItem refreshMedia(MediaItem item) {
+        final location = refreshedByAsset[item.assetIdentifier];
+        return location == null ? item : item.withCaptureLocation(location);
+      }
+
       final detected = _eventsFromMedia(imported);
-      final existingEvents = state.demoMode
-          ? state.events.where((event) => !event.isDemo).toList()
-          : state.events;
-      final existingRecommendations = state.demoMode
-          ? state.recommendations.where((item) => !item.isDemo).toList()
-          : state.recommendations;
+      final existingEvents = state.events
+          .where((event) => !event.isDemo)
+          .map(
+            (event) => event
+                .copyWith(media: event.media.map(refreshMedia).toList())
+                .withResolvedPlace(),
+          )
+          .toList();
       state = state.copyWith(
         events: [...existingEvents, ...detected],
+        unassignedMedia: state.unassignedMedia.map(refreshMedia).toList(),
         recommendations: [
-          ...existingRecommendations,
+          ...state.recommendations.where((item) => !item.isDemo),
           ...detected.expand(_recommendationsFor),
+        ],
+        scanStage: 'Finding place names for photo locations',
+        demoMode: false,
+      );
+      final resolved = await _resolveLocations(state.events);
+      if (!isCurrentScan() || state.scanState != ScanState.scanning) return;
+      // Apply to the latest state so a manual edit during lookup wins.
+      state = state.copyWith(
+        events: [
+          for (final event in state.events)
+            if (resolved[event.id] case final place?
+                when event.place?.isConfirmed != true &&
+                    event.primaryCaptureLocation?.latitude == place.latitude &&
+                    event.primaryCaptureLocation?.longitude == place.longitude)
+              event.copyWith(place: place)
+            else
+              event,
         ],
         scanState: ScanState.completed,
         scanProgress: 1,
-        scanStage: imported.isEmpty
-            ? 'No new media found'
-            : 'Created ${detected.length} event groups',
-        demoMode: false,
+        scanStage: imported.isNotEmpty
+            ? 'Created ${detected.length} event groups'
+            : refreshedByAsset.isNotEmpty
+            ? 'Updated locations for ${refreshedByAsset.length} saved media items'
+            : 'No new media found',
       );
       await _persistCurrentState();
       await _repository.completeScan(
@@ -226,6 +352,7 @@ class MemoryController extends Notifier<MemoryAppState> {
             .toInt(),
       );
     } on Object catch (error) {
+      if (!isCurrentScan()) return;
       if (scanId != null) {
         unawaited(
           _repository.failScan(scanId: scanId, error: error).catchError((_) {}),
@@ -280,9 +407,7 @@ class MemoryController extends Notifier<MemoryAppState> {
       final place = normalizedPlace.isEmpty
           ? null
           : MemoryPlace(
-              id:
-                  event.place?.id ??
-                  'place_${DateTime.now().microsecondsSinceEpoch}',
+              id: 'manual_place_${event.id}',
               name: normalizedPlace,
               latitude: event.place?.latitude,
               longitude: event.place?.longitude,
@@ -575,7 +700,11 @@ class MemoryController extends Notifier<MemoryAppState> {
         endAt: mergedMedia.last.capturedAt,
         media: mergedMedia,
         people: peopleById.values.toList(),
-        place: target.place ?? source.place,
+        place: target.place?.isConfirmed == true
+            ? target.place
+            : source.place?.isConfirmed == true
+            ? source.place
+            : target.place ?? source.place,
         description: target.hasDescription
             ? target.description
             : source.description,
@@ -665,26 +794,37 @@ class MemoryController extends Notifier<MemoryAppState> {
     );
   }
 
-  Future<void> deleteAllDerivedData() async {
+  Future<bool> deleteAllDerivedData() async {
+    await ensureRestored();
+    if (state.restoreFailed) return false;
     final voiceNotePaths = state.events
         .map((event) => event.voiceNotePath)
         .whereType<String>()
         .toSet();
+    _scanGeneration++;
     _revision++;
-    state = const MemoryAppState(isRestoring: false);
     try {
       await _repository.deleteAllDerivedData();
+      if (_disposed) return true;
+      state = const MemoryAppState();
       for (final path in voiceNotePaths) {
         try {
           final file = File(path);
           if (await file.exists()) await file.delete();
         } on Object {
-          // A missing or externally removed app-private recording is harmless.
+          // Missing app-private recordings do not affect database deletion.
         }
       }
+      return true;
     } on Object {
-      // In-memory state has still been cleared. Gallery originals are never
-      // touched by this operation.
+      if (!_disposed) {
+        state = state.copyWith(
+          scanState: ScanState.idle,
+          errorMessage:
+              'App data could not be cleared. Your memories are still available.',
+        );
+      }
+      return false;
     }
   }
 
@@ -726,6 +866,77 @@ class MemoryController extends Notifier<MemoryAppState> {
           result.clusters[index].mediaIds.map((id) => byId[id]!).toList(),
         ),
     ];
+  }
+
+  Future<Map<String, MemoryPlace>> _resolveLocations(
+    List<MemoryEvent> events,
+  ) async {
+    final resolved = <String, MemoryPlace>{};
+    final names = <String, PlaceAddress?>{};
+    for (final event in events) {
+      final location = event.primaryCaptureLocation;
+      final place = event.resolvedPlace;
+      if (location != null &&
+          place != null &&
+          !place.isConfirmed &&
+          place.name != location.label) {
+        names[location.key] = PlaceAddress(
+          label: place.name,
+          locality: place.locality,
+          city: place.city,
+          region: place.region,
+          country: place.country,
+          formattedAddress: place.formattedAddress,
+        );
+      }
+    }
+    final elapsed = Stopwatch()..start();
+    final gateway = ref.read(placeNameGatewayProvider);
+    for (final event in events) {
+      final location = event.primaryCaptureLocation;
+      final place = event.resolvedPlace;
+      if (location == null ||
+          place == null ||
+          place.isConfirmed ||
+          place.name != location.label) {
+        continue;
+      }
+      // Bound optional device-service work; coordinates already work offline.
+      final remainingMs = 8000 - elapsed.elapsedMilliseconds;
+      if (remainingMs <= 0) break;
+      try {
+        if (!names.containsKey(location.key)) {
+          final lookup = gateway is DetailedPlaceNameGateway
+              ? gateway.addressFor(location)
+              : gateway
+                    .nameFor(location)
+                    .then(
+                      (name) => name == null ? null : PlaceAddress(label: name),
+                    );
+          names[location.key] = await lookup.timeout(
+            Duration(milliseconds: remainingMs.clamp(1, 2000)),
+          );
+        }
+        final address = names[location.key];
+        final name = address?.label.trim();
+        if (name == null || name.isEmpty) continue;
+        resolved[event.id] = MemoryPlace(
+          id: place.id,
+          name: name,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          locality: address?.locality,
+          city: address?.city,
+          region: address?.region,
+          country: address?.country,
+          formattedAddress: address?.formattedAddress,
+        );
+      } on Object {
+        // Offline, unavailable, or rate-limited: retain GPS and retry next scan.
+        break;
+      }
+    }
+    return resolved;
   }
 
   MemoryEvent _newEvent(int index, List<MediaItem> media) {
@@ -831,6 +1042,7 @@ class MemoryController extends Notifier<MemoryAppState> {
   }
 
   MemoryEvent _rescore(MemoryEvent event) {
+    event = event.withResolvedPlace();
     final significance = const RuleBasedSignificancePredictor().predict(
       SignificanceInput(
         manualRating: event.rating == 0 ? null : event.rating,
@@ -1008,14 +1220,23 @@ class MemoryController extends Notifier<MemoryAppState> {
   }
 
   void _commit(MemoryAppState next) {
+    if (state.isRestoring || state.restoreFailed || _disposed) return;
     _revision++;
-    state = next.copyWith(isRestoring: false);
+    state = next.copyWith(
+      events: next.events.map((event) => event.withResolvedPlace()).toList(),
+      isRestoring: false,
+    );
     if (!state.demoMode) {
-      unawaited(_persistCurrentState().catchError((_) {}));
+      unawaited(_persistCurrentState().catchError((_) => _reportSaveFailure()));
     }
   }
 
   Future<void> _persistCurrentState() {
+    if (state.restoreFailed || state.isRestoring) {
+      return Future<void>.error(
+        StateError('Load saved memories before saving.'),
+      );
+    }
     if (state.demoMode) return Future<void>.value();
     return _repository.save(
       MemorySnapshot(
