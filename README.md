@@ -227,7 +227,12 @@ flutter test
 flutter build apk --debug
 ```
 
-The verified analysis pass reports **No issues found** and all **53 automated tests
+For a release APK that updates an existing installation, configure the original
+signing key first. See [Android release signing](android/RELEASE_SIGNING.md).
+Release builds reject missing or mismatched signing keys to prevent an APK that
+Android cannot install over the original app.
+
+The 23 October 2026 analysis pass reports **No issues found** and all **94 automated tests
 pass**. The suite covers clustering, score engines, sensitivity gating, normalized
 Drift round trips/atomic replacement/safe deletion, idempotent scans, permission
 denial, an empty gallery, and the timeline widget. See

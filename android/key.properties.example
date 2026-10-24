@@ -1,0 +1,6 @@
+# Copy to key.properties (ignored by Git), then point to the ORIGINAL keystore.
+# Forward slashes avoid escaping Windows paths in this Java properties file.
+storeFile=C:/path/to/original/debug.keystore
+storePassword=android
+keyAlias=androiddebugkey
+keyPassword=android

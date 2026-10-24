@@ -121,7 +121,7 @@ class _GalleryAssetThumbnailState extends State<_GalleryAssetThumbnail> {
   Future<Uint8List?> _load() async {
     try {
       final asset = await AssetEntity.fromId(widget.assetIdentifier);
-      return asset?.thumbnailDataWithSize(
+      return await asset?.thumbnailDataWithSize(
         const ThumbnailSize.square(512),
         quality: 82,
       );

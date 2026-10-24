@@ -37,7 +37,7 @@ class DeviceSecurityService {
   Future<bool> authenticateForEntry() async {
     try {
       if (!await _authentication.isDeviceSupported()) return false;
-      return _authentication.authenticate(
+      return await _authentication.authenticate(
         localizedReason: 'Unlock Smart Memory',
         persistAcrossBackgrounding: true,
       );
