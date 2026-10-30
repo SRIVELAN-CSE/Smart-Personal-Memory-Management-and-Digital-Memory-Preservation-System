@@ -1,6 +1,6 @@
 # Database schema
 
-Smart Memory uses Drift over SQLite. Schema version 1 contains 21 normalized tables.
+Smart Memory uses Drift over SQLite. Schema version 4 contains 21 normalized tables.
 Timestamps represent UTC instants; Drift may materialize them in the host local time
 zone, so domain comparisons normalize with `toUtc()`.
 
@@ -81,17 +81,23 @@ future hardening option.
 
 ## Migration strategy
 
-- `schemaVersion` starts at 1.
-- `createAll()` creates the initial normalized schema and annotated indexes.
-- `PRAGMA foreign_keys = ON` runs before use; production also enables WAL and a busy
-  timeout in the background database connection.
-- Future versions must add explicit sequential migrations, add/backfill nullable or
-  defaulted fields first, and test every historical schema.
-- Generated `app_database.g.dart` is recreated with:
-
-```powershell
-dart run build_runner build --delete-conflicting-outputs
-```
+- Version 4 adds `media_items.location_checked` (non-null boolean, default false)
+  and nullable `places.locality`, `city`, `state`, `country`, `formatted_address`.
+  Events continue to reference the existing `places` table; its latitude,
+  longitude and name fields remain the canonical location storage.
+- Version 3 to 4 performs additive column migrations inside a transaction. No
+  memories, relationships or user context are deleted. Versions 1/2 retain the
+  compatibility migration that fills missing nullable/defaulted fields and tables.
+- Existing photos with GPS reuse their stored coordinates. Previously unchecked
+  photos receive a single metadata check on the next scan. Missing GPS is cached;
+  the scan screen provides an explicit recheck option for changed permissions.
+- Production saves a consistent `smart_memory.sqlite.before-v4.sqlite` backup
+  before upgrading versions 1–3, including committed WAL data. Explicit library
+  deletion also removes the app's v3/v4 migration backups.
+- Forward/unknown schemas fail without resetting the library. Foreign keys are
+  enabled before use. Tests cover version 3 with the new columns physically
+  absent, older compatibility layouts, foreign-key integrity and context retention.
+- Regenerate the Drift file using `dart run build_runner build --delete-conflicting-outputs`.
 
 ## Demo seed
 

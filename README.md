@@ -1,5 +1,7 @@
 # Smart Memory
 
+Current review release: **1.0.2 (build 4)**. See [release changes, recording comparison and verification](RELEASE_REVIEW.md). Older dated build records below are historical.
+
 **Smart Personal Memory Management and Digital Memory Preservation System**
 
 Smart Memory is an Android-focused Flutter application that turns selected gallery
@@ -63,6 +65,28 @@ preservation need =
 Every rule-based engine retains factor contributions and reason codes. Sensitive
 events are removed from proactive recommendations and never produce revealing
 lock-screen text.
+
+## Photo locations in memories
+
+Events and timeline cards now display where their photos were taken. Import reads
+embedded GPS using the gallery plugin's asynchronous metadata API. The event uses
+the first media item with valid coordinates; a confirmed manual place takes
+precedence. Expand **Photo locations** inside an event to inspect each photo or
+video's own coordinates, including missing-location entries.
+
+The personal memory graph includes an event location node. Tap it for the place
+and capture-location summary; tap a photo node for that photo's coordinates.
+Hidden memories are excluded from the graph and their timeline location is hidden.
+
+Place-name lookup uses the device geocoding service. Coordinates remain available
+when that service fails, times out, or returns no name. Media without GPS shows
+**Location unavailable** and supports **Add location**. Run **Scan** again to
+recover missing coordinates for previously imported media and retry unresolved
+place names. This preserves event groupings, stories, OCR, and manual corrections.
+
+No new dependency, database migration, or current-device location permission is
+needed. Physical-device validation of real photo GPS and Android permission
+combinations remains pending. See [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
 ## Research integrity
 
@@ -180,17 +204,17 @@ flutter test
 flutter build apk --debug
 ```
 
-The verified analysis pass reports **No issues found** and all **31 automated tests
+The verified analysis pass reports **No issues found** and all **53 automated tests
 pass**. The suite covers clustering, score engines, sensitivity gating, normalized
 Drift round trips/atomic replacement/safe deletion, idempotent scans, permission
 denial, an empty gallery, and the timeline widget. See
 [TESTING.md](TESTING.md) for the evidence and manual Android matrix.
 
 The verified debug artifact is
-`build/app/outputs/flutter-apk/app-debug.apk` (211,983,497 bytes), package
+`build/app/outputs/flutter-apk/app-debug.apk` (190,069,347 bytes), package
 `com.mkce.smartmemory`, min SDK 24, target/compile SDK 36, and APK Signature Scheme
 v2 debug-signed. SHA-256:
-`0f2b8e8ca72d307f771adfb64bb4053995721858987bb9107bae9b823f293ac7`.
+`bd5e4f6b99f855245e78592d0c7bf447c8fbc46974439adb95584e92431afd2d`.
 
 ## Demo
 

@@ -80,7 +80,7 @@ class _TimeCapsuleScreenState extends ConsumerState<TimeCapsuleScreen> {
                   lastDate: DateTime(now.year + 20),
                   initialDate: _selected ?? now.add(const Duration(days: 365)),
                 );
-                if (value != null) {
+                if (mounted && value != null) {
                   setState(
                     () => _selected = DateTime(
                       value.year,
@@ -110,13 +110,23 @@ class _TimeCapsuleScreenState extends ConsumerState<TimeCapsuleScreen> {
                       _error = null;
                     });
                     try {
-                      await ref
+                      final scheduled = await ref
                           .read(notificationGatewayProvider)
                           .scheduleNeutralReminder(
                             id: recommendation.id.hashCode & 0x7fffffff,
                             scheduledFor: _selected!,
                             eventId: event.id,
                           );
+                      if (!mounted) return;
+                      if (!scheduled) {
+                        setState(() {
+                          _saving = false;
+                          _error =
+                              'Notification permission was denied. Allow '
+                              'notifications in Android settings and try again.';
+                        });
+                        return;
+                      }
                       ref
                           .read(memoryControllerProvider.notifier)
                           .scheduleTimeCapsule(recommendation.id, _selected!);

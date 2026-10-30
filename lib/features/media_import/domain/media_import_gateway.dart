@@ -25,6 +25,7 @@ abstract interface class MediaImportGateway {
 
   Future<List<MediaItem>> scan({
     Set<String> knownAssetIdentifiers = const {},
+    Set<String> refreshLocationAssetIdentifiers = const {},
     void Function(MediaScanProgress progress)? onProgress,
   });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/security/device_security_service.dart';
 
 class PrivacySettings {
   const PrivacySettings({
@@ -34,10 +35,40 @@ class PrivacySettings {
 }
 
 class PrivacyController extends Notifier<PrivacySettings> {
-  @override
-  PrivacySettings build() => const PrivacySettings();
+  bool _disposed = false;
+  int _themeRevision = 0;
 
-  void setThemeMode(ThemeMode mode) => state = state.copyWith(themeMode: mode);
+  @override
+  PrivacySettings build() {
+    _disposed = false;
+    ref.onDispose(() => _disposed = true);
+    Future<void>.microtask(() async {
+      final revision = _themeRevision;
+      try {
+        final saved = await ref
+            .read(deviceSecurityServiceProvider)
+            .readThemePreference();
+        if (_disposed || revision != _themeRevision) return;
+        final theme = ThemeMode.values
+            .where((mode) => mode.name == saved)
+            .firstOrNull;
+        if (theme != null) state = state.copyWith(themeMode: theme);
+      } on Object {
+        // Device theme remains available when preferences cannot be read.
+      }
+    });
+    return const PrivacySettings();
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    final revision = ++_themeRevision;
+    await ref
+        .read(deviceSecurityServiceProvider)
+        .saveThemePreference(mode.name);
+    if (!_disposed && revision == _themeRevision) {
+      state = state.copyWith(themeMode: mode);
+    }
+  }
 
   void setBiometricLock(bool value) {
     state = state.copyWith(biometricLock: value);

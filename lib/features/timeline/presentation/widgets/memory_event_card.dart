@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../event_management/presentation/memory_controller.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/memory_models.dart';
@@ -6,18 +8,18 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/memory_cover.dart';
 import '../../../../core/widgets/score_chip.dart';
 
-class MemoryEventCard extends StatelessWidget {
+class MemoryEventCard extends ConsumerWidget {
   const MemoryEventCard({required this.event, super.key});
 
   final MemoryEvent event;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.push('/event/${event.id}'),
+        onTap: () => context.push('/event/${Uri.encodeComponent(event.id)}'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -41,19 +43,52 @@ class MemoryEventCard extends StatelessWidget {
                               ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                       ),
-                      if (event.isFavourite)
-                        Icon(Icons.favorite, color: scheme.error, size: 20),
+                      IconButton(
+                        tooltip: event.isFavourite
+                            ? 'Remove favourite'
+                            : 'Favourite',
+                        onPressed: () => ref
+                            .read(memoryControllerProvider.notifier)
+                            .toggleFavourite(event.id),
+                        icon: Icon(
+                          event.isFavourite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: event.isFavourite
+                              ? scheme.error
+                              : scheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    [
-                      formatMemoryDate(event.startAt),
-                      if (event.place != null) event.place!.name,
-                    ].join(' • '),
+                    [formatMemoryDate(event.startAt)].join(' • '),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.place_outlined,
+                        size: 17,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          event.isSensitive
+                              ? 'Location hidden'
+                              : event.locationLabel,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Wrap(

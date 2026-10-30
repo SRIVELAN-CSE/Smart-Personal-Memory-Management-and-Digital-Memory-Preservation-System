@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../../core/models/memory_models.dart';
+import '../../../core/models/capture_location.dart';
+import '../../../core/services/device_media_service.dart';
 import '../../preprocessing/domain/ocr_gateway.dart';
 import '../domain/media_import_gateway.dart';
 
@@ -41,6 +43,7 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
   @override
   Future<List<MediaItem>> scan({
     Set<String> knownAssetIdentifiers = const {},
+    Set<String> refreshLocationAssetIdentifiers = const {},
     void Function(MediaScanProgress progress)? onProgress,
   }) async {
     final access = await currentAccess();
@@ -81,7 +84,9 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
       if (assets.isEmpty) break;
       for (final asset in assets) {
         processed++;
-        if (knownAssetIdentifiers.contains(asset.id)) {
+        final alreadyImported = knownAssetIdentifiers.contains(asset.id);
+        if (alreadyImported &&
+            !refreshLocationAssetIdentifiers.contains(asset.id)) {
           onProgress?.call(
             MediaScanProgress(
               processed: processed,
@@ -93,6 +98,35 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
         }
 
         try {
+          final location = await readCaptureLocation(asset);
+          if (alreadyImported) {
+            onProgress?.call(
+              MediaScanProgress(
+                processed: processed,
+                total: total,
+                currentStage: 'Checking saved photo locations',
+              ),
+            );
+            {
+              // The controller merges only coordinates into the saved item.
+              imported.add(
+                MediaItem(
+                  id: 'media_${_stableFingerprint(Uint8List.fromList(asset.id.codeUnits))}',
+                  assetIdentifier: asset.id,
+                  locationChecked: true,
+                  kind: asset.type == AssetType.video
+                      ? MediaKind.video
+                      : MediaKind.image,
+                  capturedAt: asset.createDateTime,
+                  width: asset.width,
+                  height: asset.height,
+                  latitude: location?.latitude,
+                  longitude: location?.longitude,
+                ),
+              );
+            }
+            continue;
+          }
           onProgress?.call(
             MediaScanProgress(
               processed: processed,
@@ -118,7 +152,22 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
           var ocrText = '';
           if (thumbnail != null && asset.type == AssetType.image) {
             try {
-              ocrText = await _ocrGateway.recognizeThumbnail(thumbnail);
+              // OCR needs legible characters, not the small square used for covers.
+              // Preserve the original aspect ratio and bound memory for large photos.
+              final longest = asset.width > asset.height
+                  ? asset.width
+                  : asset.height;
+              final scale = longest > 2048 ? 2048 / longest : 1.0;
+              final ocrImage = await asset.thumbnailDataWithSize(
+                ThumbnailSize(
+                  (asset.width * scale).round().clamp(1, 2048),
+                  (asset.height * scale).round().clamp(1, 2048),
+                ),
+                quality: 95,
+              );
+              ocrText = await _ocrGateway.recognizeThumbnail(
+                ocrImage ?? thumbnail,
+              );
             } on Object {
               // OCR is a supporting signal. Metadata import must continue when
               // a damaged image or platform decoder cannot be recognized.
@@ -129,6 +178,7 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
             MediaItem(
               id: 'media_${_stableFingerprint(Uint8List.fromList(asset.id.codeUnits))}',
               assetIdentifier: asset.id,
+              locationChecked: true,
               kind: asset.type == AssetType.video
                   ? MediaKind.video
                   : MediaKind.image,
@@ -137,8 +187,8 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
               height: asset.height,
               duration: asset.videoDuration,
               fileSize: fileSize,
-              latitude: asset.latitude,
-              longitude: asset.longitude,
+              latitude: location?.latitude,
+              longitude: location?.longitude,
               ocrText: ocrText,
               fingerprint: thumbnail == null
                   ? ''
@@ -158,6 +208,33 @@ class PhotoManagerMediaImportGateway implements MediaImportGateway {
       }
     }
     return imported;
+  }
+
+  /// Android 10+ does not populate AssetEntity's synchronous GPS getters.
+  static Future<CaptureLocation?> readCaptureLocation(AssetEntity asset) async {
+    try {
+      final coordinates = await asset.latlngAsync();
+      final location = CaptureLocation.fromCoordinates(
+        coordinates?.latitude,
+        coordinates?.longitude,
+      );
+      if (location != null) return location;
+    } on Object {
+      // A content-URI fallback below also supports scoped-storage videos whose
+      // raw filesystem paths cannot be opened by the gallery plugin.
+    }
+    try {
+      final value = await DeviceMediaService.location(
+        asset.id,
+        asset.type == AssetType.video,
+      );
+      return CaptureLocation.fromCoordinates(
+        (value?['latitude'] as num?)?.toDouble(),
+        (value?['longitude'] as num?)?.toDouble(),
+      );
+    } on Object {
+      return null;
+    }
   }
 
   GalleryAccess _mapAccess(PermissionState state) {

@@ -43,6 +43,7 @@ class MediaItems extends Table with AuditColumns {
 
   late final id = text()();
   late final assetId = text().unique()();
+  late final locationChecked = boolean().withDefault(const Constant(false))();
   late final assetUri = text().nullable()();
   late final mediaType = text()();
   late final mimeType = text().nullable()();
@@ -79,6 +80,11 @@ class MediaItems extends Table with AuditColumns {
 class Places extends Table with AuditColumns {
   late final id = text()();
   late final name = text()();
+  late final locality = text().nullable()();
+  late final city = text().nullable()();
+  late final state = text().nullable()();
+  late final country = text().nullable()();
+  late final formattedAddress = text().nullable()();
   late final latitude = real().nullable()();
   late final longitude = real().nullable()();
   late final isConfirmed = boolean().withDefault(const Constant(false))();

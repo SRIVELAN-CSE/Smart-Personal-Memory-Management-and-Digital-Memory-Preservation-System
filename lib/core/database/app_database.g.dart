@@ -794,6 +794,21 @@ class $MediaItemsTable extends MediaItems
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
+  static const VerificationMeta _locationCheckedMeta = const VerificationMeta(
+    'locationChecked',
+  );
+  @override
+  late final GeneratedColumn<bool> locationChecked = GeneratedColumn<bool>(
+    'location_checked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("location_checked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _assetUriMeta = const VerificationMeta(
     'assetUri',
   );
@@ -1049,6 +1064,7 @@ class $MediaItemsTable extends MediaItems
     updatedAt,
     id,
     assetId,
+    locationChecked,
     assetUri,
     mediaType,
     mimeType,
@@ -1108,6 +1124,15 @@ class $MediaItemsTable extends MediaItems
       );
     } else if (isInserting) {
       context.missing(_assetIdMeta);
+    }
+    if (data.containsKey('location_checked')) {
+      context.handle(
+        _locationCheckedMeta,
+        locationChecked.isAcceptableOrUnknown(
+          data['location_checked']!,
+          _locationCheckedMeta,
+        ),
+      );
     }
     if (data.containsKey('asset_uri')) {
       context.handle(
@@ -1291,6 +1316,10 @@ class $MediaItemsTable extends MediaItems
         DriftSqlType.string,
         data['${effectivePrefix}asset_id'],
       )!,
+      locationChecked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}location_checked'],
+      )!,
       assetUri: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}asset_uri'],
@@ -1393,6 +1422,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
   final DateTime updatedAt;
   final String id;
   final String assetId;
+  final bool locationChecked;
   final String? assetUri;
   final String mediaType;
   final String? mimeType;
@@ -1420,6 +1450,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
     required this.updatedAt,
     required this.id,
     required this.assetId,
+    required this.locationChecked,
     this.assetUri,
     required this.mediaType,
     this.mimeType,
@@ -1450,6 +1481,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['id'] = Variable<String>(id);
     map['asset_id'] = Variable<String>(assetId);
+    map['location_checked'] = Variable<bool>(locationChecked);
     if (!nullToAbsent || assetUri != null) {
       map['asset_uri'] = Variable<String>(assetUri);
     }
@@ -1513,6 +1545,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
       updatedAt: Value(updatedAt),
       id: Value(id),
       assetId: Value(assetId),
+      locationChecked: Value(locationChecked),
       assetUri: assetUri == null && nullToAbsent
           ? const Value.absent()
           : Value(assetUri),
@@ -1580,6 +1613,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       id: serializer.fromJson<String>(json['id']),
       assetId: serializer.fromJson<String>(json['assetId']),
+      locationChecked: serializer.fromJson<bool>(json['locationChecked']),
       assetUri: serializer.fromJson<String?>(json['assetUri']),
       mediaType: serializer.fromJson<String>(json['mediaType']),
       mimeType: serializer.fromJson<String?>(json['mimeType']),
@@ -1616,6 +1650,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'id': serializer.toJson<String>(id),
       'assetId': serializer.toJson<String>(assetId),
+      'locationChecked': serializer.toJson<bool>(locationChecked),
       'assetUri': serializer.toJson<String?>(assetUri),
       'mediaType': serializer.toJson<String>(mediaType),
       'mimeType': serializer.toJson<String?>(mimeType),
@@ -1646,6 +1681,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
     DateTime? updatedAt,
     String? id,
     String? assetId,
+    bool? locationChecked,
     Value<String?> assetUri = const Value.absent(),
     String? mediaType,
     Value<String?> mimeType = const Value.absent(),
@@ -1673,6 +1709,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
     updatedAt: updatedAt ?? this.updatedAt,
     id: id ?? this.id,
     assetId: assetId ?? this.assetId,
+    locationChecked: locationChecked ?? this.locationChecked,
     assetUri: assetUri.present ? assetUri.value : this.assetUri,
     mediaType: mediaType ?? this.mediaType,
     mimeType: mimeType.present ? mimeType.value : this.mimeType,
@@ -1710,6 +1747,9 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       id: data.id.present ? data.id.value : this.id,
       assetId: data.assetId.present ? data.assetId.value : this.assetId,
+      locationChecked: data.locationChecked.present
+          ? data.locationChecked.value
+          : this.locationChecked,
       assetUri: data.assetUri.present ? data.assetUri.value : this.assetUri,
       mediaType: data.mediaType.present ? data.mediaType.value : this.mediaType,
       mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
@@ -1762,6 +1802,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('id: $id, ')
           ..write('assetId: $assetId, ')
+          ..write('locationChecked: $locationChecked, ')
           ..write('assetUri: $assetUri, ')
           ..write('mediaType: $mediaType, ')
           ..write('mimeType: $mimeType, ')
@@ -1794,6 +1835,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
     updatedAt,
     id,
     assetId,
+    locationChecked,
     assetUri,
     mediaType,
     mimeType,
@@ -1825,6 +1867,7 @@ class MediaItemRow extends DataClass implements Insertable<MediaItemRow> {
           other.updatedAt == this.updatedAt &&
           other.id == this.id &&
           other.assetId == this.assetId &&
+          other.locationChecked == this.locationChecked &&
           other.assetUri == this.assetUri &&
           other.mediaType == this.mediaType &&
           other.mimeType == this.mimeType &&
@@ -1857,6 +1900,7 @@ class MediaItemsCompanion extends UpdateCompanion<MediaItemRow> {
   final Value<DateTime> updatedAt;
   final Value<String> id;
   final Value<String> assetId;
+  final Value<bool> locationChecked;
   final Value<String?> assetUri;
   final Value<String> mediaType;
   final Value<String?> mimeType;
@@ -1885,6 +1929,7 @@ class MediaItemsCompanion extends UpdateCompanion<MediaItemRow> {
     this.updatedAt = const Value.absent(),
     this.id = const Value.absent(),
     this.assetId = const Value.absent(),
+    this.locationChecked = const Value.absent(),
     this.assetUri = const Value.absent(),
     this.mediaType = const Value.absent(),
     this.mimeType = const Value.absent(),
@@ -1914,6 +1959,7 @@ class MediaItemsCompanion extends UpdateCompanion<MediaItemRow> {
     this.updatedAt = const Value.absent(),
     required String id,
     required String assetId,
+    this.locationChecked = const Value.absent(),
     this.assetUri = const Value.absent(),
     required String mediaType,
     this.mimeType = const Value.absent(),
@@ -1946,6 +1992,7 @@ class MediaItemsCompanion extends UpdateCompanion<MediaItemRow> {
     Expression<DateTime>? updatedAt,
     Expression<String>? id,
     Expression<String>? assetId,
+    Expression<bool>? locationChecked,
     Expression<String>? assetUri,
     Expression<String>? mediaType,
     Expression<String>? mimeType,
@@ -1975,6 +2022,7 @@ class MediaItemsCompanion extends UpdateCompanion<MediaItemRow> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (id != null) 'id': id,
       if (assetId != null) 'asset_id': assetId,
+      if (locationChecked != null) 'location_checked': locationChecked,
       if (assetUri != null) 'asset_uri': assetUri,
       if (mediaType != null) 'media_type': mediaType,
       if (mimeType != null) 'mime_type': mimeType,
@@ -2007,6 +2055,7 @@ class MediaItemsCompanion extends UpdateCompanion<MediaItemRow> {
     Value<DateTime>? updatedAt,
     Value<String>? id,
     Value<String>? assetId,
+    Value<bool>? locationChecked,
     Value<String?>? assetUri,
     Value<String>? mediaType,
     Value<String?>? mimeType,
@@ -2036,6 +2085,7 @@ class MediaItemsCompanion extends UpdateCompanion<MediaItemRow> {
       updatedAt: updatedAt ?? this.updatedAt,
       id: id ?? this.id,
       assetId: assetId ?? this.assetId,
+      locationChecked: locationChecked ?? this.locationChecked,
       assetUri: assetUri ?? this.assetUri,
       mediaType: mediaType ?? this.mediaType,
       mimeType: mimeType ?? this.mimeType,
@@ -2076,6 +2126,9 @@ class MediaItemsCompanion extends UpdateCompanion<MediaItemRow> {
     }
     if (assetId.present) {
       map['asset_id'] = Variable<String>(assetId.value);
+    }
+    if (locationChecked.present) {
+      map['location_checked'] = Variable<bool>(locationChecked.value);
     }
     if (assetUri.present) {
       map['asset_uri'] = Variable<String>(assetUri.value);
@@ -2158,6 +2211,7 @@ class MediaItemsCompanion extends UpdateCompanion<MediaItemRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('id: $id, ')
           ..write('assetId: $assetId, ')
+          ..write('locationChecked: $locationChecked, ')
           ..write('assetUri: $assetUri, ')
           ..write('mediaType: $mediaType, ')
           ..write('mimeType: $mimeType, ')
@@ -2233,6 +2287,57 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _localityMeta = const VerificationMeta(
+    'locality',
+  );
+  @override
+  late final GeneratedColumn<String> locality = GeneratedColumn<String>(
+    'locality',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cityMeta = const VerificationMeta('city');
+  @override
+  late final GeneratedColumn<String> city = GeneratedColumn<String>(
+    'city',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _countryMeta = const VerificationMeta(
+    'country',
+  );
+  @override
+  late final GeneratedColumn<String> country = GeneratedColumn<String>(
+    'country',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _formattedAddressMeta = const VerificationMeta(
+    'formattedAddress',
+  );
+  @override
+  late final GeneratedColumn<String> formattedAddress = GeneratedColumn<String>(
+    'formatted_address',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _latitudeMeta = const VerificationMeta(
     'latitude',
   );
@@ -2289,6 +2394,11 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
     updatedAt,
     id,
     name,
+    locality,
+    city,
+    state,
+    country,
+    formattedAddress,
     latitude,
     longitude,
     isConfirmed,
@@ -2330,6 +2440,39 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
       );
     } else if (isInserting) {
       context.missing(_nameMeta);
+    }
+    if (data.containsKey('locality')) {
+      context.handle(
+        _localityMeta,
+        locality.isAcceptableOrUnknown(data['locality']!, _localityMeta),
+      );
+    }
+    if (data.containsKey('city')) {
+      context.handle(
+        _cityMeta,
+        city.isAcceptableOrUnknown(data['city']!, _cityMeta),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('country')) {
+      context.handle(
+        _countryMeta,
+        country.isAcceptableOrUnknown(data['country']!, _countryMeta),
+      );
+    }
+    if (data.containsKey('formatted_address')) {
+      context.handle(
+        _formattedAddressMeta,
+        formattedAddress.isAcceptableOrUnknown(
+          data['formatted_address']!,
+          _formattedAddressMeta,
+        ),
+      );
     }
     if (data.containsKey('latitude')) {
       context.handle(
@@ -2383,6 +2526,26 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
+      locality: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}locality'],
+      ),
+      city: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}city'],
+      ),
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      ),
+      country: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}country'],
+      ),
+      formattedAddress: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}formatted_address'],
+      ),
       latitude: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}latitude'],
@@ -2413,6 +2576,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   final DateTime updatedAt;
   final String id;
   final String name;
+  final String? locality;
+  final String? city;
+  final String? state;
+  final String? country;
+  final String? formattedAddress;
   final double? latitude;
   final double? longitude;
   final bool isConfirmed;
@@ -2422,6 +2590,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     required this.updatedAt,
     required this.id,
     required this.name,
+    this.locality,
+    this.city,
+    this.state,
+    this.country,
+    this.formattedAddress,
     this.latitude,
     this.longitude,
     required this.isConfirmed,
@@ -2434,6 +2607,21 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
+    if (!nullToAbsent || locality != null) {
+      map['locality'] = Variable<String>(locality);
+    }
+    if (!nullToAbsent || city != null) {
+      map['city'] = Variable<String>(city);
+    }
+    if (!nullToAbsent || state != null) {
+      map['state'] = Variable<String>(state);
+    }
+    if (!nullToAbsent || country != null) {
+      map['country'] = Variable<String>(country);
+    }
+    if (!nullToAbsent || formattedAddress != null) {
+      map['formatted_address'] = Variable<String>(formattedAddress);
+    }
     if (!nullToAbsent || latitude != null) {
       map['latitude'] = Variable<double>(latitude);
     }
@@ -2451,6 +2639,19 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       updatedAt: Value(updatedAt),
       id: Value(id),
       name: Value(name),
+      locality: locality == null && nullToAbsent
+          ? const Value.absent()
+          : Value(locality),
+      city: city == null && nullToAbsent ? const Value.absent() : Value(city),
+      state: state == null && nullToAbsent
+          ? const Value.absent()
+          : Value(state),
+      country: country == null && nullToAbsent
+          ? const Value.absent()
+          : Value(country),
+      formattedAddress: formattedAddress == null && nullToAbsent
+          ? const Value.absent()
+          : Value(formattedAddress),
       latitude: latitude == null && nullToAbsent
           ? const Value.absent()
           : Value(latitude),
@@ -2472,6 +2673,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      locality: serializer.fromJson<String?>(json['locality']),
+      city: serializer.fromJson<String?>(json['city']),
+      state: serializer.fromJson<String?>(json['state']),
+      country: serializer.fromJson<String?>(json['country']),
+      formattedAddress: serializer.fromJson<String?>(json['formattedAddress']),
       latitude: serializer.fromJson<double?>(json['latitude']),
       longitude: serializer.fromJson<double?>(json['longitude']),
       isConfirmed: serializer.fromJson<bool>(json['isConfirmed']),
@@ -2486,6 +2692,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
+      'locality': serializer.toJson<String?>(locality),
+      'city': serializer.toJson<String?>(city),
+      'state': serializer.toJson<String?>(state),
+      'country': serializer.toJson<String?>(country),
+      'formattedAddress': serializer.toJson<String?>(formattedAddress),
       'latitude': serializer.toJson<double?>(latitude),
       'longitude': serializer.toJson<double?>(longitude),
       'isConfirmed': serializer.toJson<bool>(isConfirmed),
@@ -2498,6 +2709,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     DateTime? updatedAt,
     String? id,
     String? name,
+    Value<String?> locality = const Value.absent(),
+    Value<String?> city = const Value.absent(),
+    Value<String?> state = const Value.absent(),
+    Value<String?> country = const Value.absent(),
+    Value<String?> formattedAddress = const Value.absent(),
     Value<double?> latitude = const Value.absent(),
     Value<double?> longitude = const Value.absent(),
     bool? isConfirmed,
@@ -2507,6 +2723,13 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     updatedAt: updatedAt ?? this.updatedAt,
     id: id ?? this.id,
     name: name ?? this.name,
+    locality: locality.present ? locality.value : this.locality,
+    city: city.present ? city.value : this.city,
+    state: state.present ? state.value : this.state,
+    country: country.present ? country.value : this.country,
+    formattedAddress: formattedAddress.present
+        ? formattedAddress.value
+        : this.formattedAddress,
     latitude: latitude.present ? latitude.value : this.latitude,
     longitude: longitude.present ? longitude.value : this.longitude,
     isConfirmed: isConfirmed ?? this.isConfirmed,
@@ -2518,6 +2741,13 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      locality: data.locality.present ? data.locality.value : this.locality,
+      city: data.city.present ? data.city.value : this.city,
+      state: data.state.present ? data.state.value : this.state,
+      country: data.country.present ? data.country.value : this.country,
+      formattedAddress: data.formattedAddress.present
+          ? data.formattedAddress.value
+          : this.formattedAddress,
       latitude: data.latitude.present ? data.latitude.value : this.latitude,
       longitude: data.longitude.present ? data.longitude.value : this.longitude,
       isConfirmed: data.isConfirmed.present
@@ -2534,6 +2764,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('locality: $locality, ')
+          ..write('city: $city, ')
+          ..write('state: $state, ')
+          ..write('country: $country, ')
+          ..write('formattedAddress: $formattedAddress, ')
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('isConfirmed: $isConfirmed, ')
@@ -2548,6 +2783,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     updatedAt,
     id,
     name,
+    locality,
+    city,
+    state,
+    country,
+    formattedAddress,
     latitude,
     longitude,
     isConfirmed,
@@ -2561,6 +2801,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
           other.updatedAt == this.updatedAt &&
           other.id == this.id &&
           other.name == this.name &&
+          other.locality == this.locality &&
+          other.city == this.city &&
+          other.state == this.state &&
+          other.country == this.country &&
+          other.formattedAddress == this.formattedAddress &&
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
           other.isConfirmed == this.isConfirmed &&
@@ -2572,6 +2817,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
   final Value<DateTime> updatedAt;
   final Value<String> id;
   final Value<String> name;
+  final Value<String?> locality;
+  final Value<String?> city;
+  final Value<String?> state;
+  final Value<String?> country;
+  final Value<String?> formattedAddress;
   final Value<double?> latitude;
   final Value<double?> longitude;
   final Value<bool> isConfirmed;
@@ -2582,6 +2832,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     this.updatedAt = const Value.absent(),
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.locality = const Value.absent(),
+    this.city = const Value.absent(),
+    this.state = const Value.absent(),
+    this.country = const Value.absent(),
+    this.formattedAddress = const Value.absent(),
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.isConfirmed = const Value.absent(),
@@ -2593,6 +2848,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     this.updatedAt = const Value.absent(),
     required String id,
     required String name,
+    this.locality = const Value.absent(),
+    this.city = const Value.absent(),
+    this.state = const Value.absent(),
+    this.country = const Value.absent(),
+    this.formattedAddress = const Value.absent(),
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.isConfirmed = const Value.absent(),
@@ -2605,6 +2865,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     Expression<DateTime>? updatedAt,
     Expression<String>? id,
     Expression<String>? name,
+    Expression<String>? locality,
+    Expression<String>? city,
+    Expression<String>? state,
+    Expression<String>? country,
+    Expression<String>? formattedAddress,
     Expression<double>? latitude,
     Expression<double>? longitude,
     Expression<bool>? isConfirmed,
@@ -2616,6 +2881,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (locality != null) 'locality': locality,
+      if (city != null) 'city': city,
+      if (state != null) 'state': state,
+      if (country != null) 'country': country,
+      if (formattedAddress != null) 'formatted_address': formattedAddress,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (isConfirmed != null) 'is_confirmed': isConfirmed,
@@ -2629,6 +2899,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     Value<DateTime>? updatedAt,
     Value<String>? id,
     Value<String>? name,
+    Value<String?>? locality,
+    Value<String?>? city,
+    Value<String?>? state,
+    Value<String?>? country,
+    Value<String?>? formattedAddress,
     Value<double?>? latitude,
     Value<double?>? longitude,
     Value<bool>? isConfirmed,
@@ -2640,6 +2915,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
       updatedAt: updatedAt ?? this.updatedAt,
       id: id ?? this.id,
       name: name ?? this.name,
+      locality: locality ?? this.locality,
+      city: city ?? this.city,
+      state: state ?? this.state,
+      country: country ?? this.country,
+      formattedAddress: formattedAddress ?? this.formattedAddress,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       isConfirmed: isConfirmed ?? this.isConfirmed,
@@ -2662,6 +2942,21 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
+    }
+    if (locality.present) {
+      map['locality'] = Variable<String>(locality.value);
+    }
+    if (city.present) {
+      map['city'] = Variable<String>(city.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (country.present) {
+      map['country'] = Variable<String>(country.value);
+    }
+    if (formattedAddress.present) {
+      map['formatted_address'] = Variable<String>(formattedAddress.value);
     }
     if (latitude.present) {
       map['latitude'] = Variable<double>(latitude.value);
@@ -2688,6 +2983,11 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('locality: $locality, ')
+          ..write('city: $city, ')
+          ..write('state: $state, ')
+          ..write('country: $country, ')
+          ..write('formattedAddress: $formattedAddress, ')
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('isConfirmed: $isConfirmed, ')
@@ -13609,6 +13909,7 @@ typedef $$MediaItemsTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       required String id,
       required String assetId,
+      Value<bool> locationChecked,
       Value<String?> assetUri,
       required String mediaType,
       Value<String?> mimeType,
@@ -13639,6 +13940,7 @@ typedef $$MediaItemsTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<String> id,
       Value<String> assetId,
+      Value<bool> locationChecked,
       Value<String?> assetUri,
       Value<String> mediaType,
       Value<String?> mimeType,
@@ -13789,6 +14091,11 @@ class $$MediaItemsTableFilterComposer
 
   ColumnFilters<String> get assetId => $composableBuilder(
     column: $table.assetId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get locationChecked => $composableBuilder(
+    column: $table.locationChecked,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14050,6 +14357,11 @@ class $$MediaItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get locationChecked => $composableBuilder(
+    column: $table.locationChecked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get assetUri => $composableBuilder(
     column: $table.assetUri,
     builder: (column) => ColumnOrderings(column),
@@ -14199,6 +14511,11 @@ class $$MediaItemsTableAnnotationComposer
 
   GeneratedColumn<String> get assetId =>
       $composableBuilder(column: $table.assetId, builder: (column) => column);
+
+  GeneratedColumn<bool> get locationChecked => $composableBuilder(
+    column: $table.locationChecked,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get assetUri =>
       $composableBuilder(column: $table.assetUri, builder: (column) => column);
@@ -14445,6 +14762,7 @@ class $$MediaItemsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> assetId = const Value.absent(),
+                Value<bool> locationChecked = const Value.absent(),
                 Value<String?> assetUri = const Value.absent(),
                 Value<String> mediaType = const Value.absent(),
                 Value<String?> mimeType = const Value.absent(),
@@ -14473,6 +14791,7 @@ class $$MediaItemsTableTableManager
                 updatedAt: updatedAt,
                 id: id,
                 assetId: assetId,
+                locationChecked: locationChecked,
                 assetUri: assetUri,
                 mediaType: mediaType,
                 mimeType: mimeType,
@@ -14503,6 +14822,7 @@ class $$MediaItemsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 required String id,
                 required String assetId,
+                Value<bool> locationChecked = const Value.absent(),
                 Value<String?> assetUri = const Value.absent(),
                 required String mediaType,
                 Value<String?> mimeType = const Value.absent(),
@@ -14531,6 +14851,7 @@ class $$MediaItemsTableTableManager
                 updatedAt: updatedAt,
                 id: id,
                 assetId: assetId,
+                locationChecked: locationChecked,
                 assetUri: assetUri,
                 mediaType: mediaType,
                 mimeType: mimeType,
@@ -14732,6 +15053,11 @@ typedef $$PlacesTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       required String id,
       required String name,
+      Value<String?> locality,
+      Value<String?> city,
+      Value<String?> state,
+      Value<String?> country,
+      Value<String?> formattedAddress,
       Value<double?> latitude,
       Value<double?> longitude,
       Value<bool> isConfirmed,
@@ -14744,6 +15070,11 @@ typedef $$PlacesTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<String> id,
       Value<String> name,
+      Value<String?> locality,
+      Value<String?> city,
+      Value<String?> state,
+      Value<String?> country,
+      Value<String?> formattedAddress,
       Value<double?> latitude,
       Value<double?> longitude,
       Value<bool> isConfirmed,
@@ -14800,6 +15131,31 @@ class $$PlacesTableFilterComposer
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get locality => $composableBuilder(
+    column: $table.locality,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get city => $composableBuilder(
+    column: $table.city,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get country => $composableBuilder(
+    column: $table.country,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get formattedAddress => $composableBuilder(
+    column: $table.formattedAddress,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14878,6 +15234,31 @@ class $$PlacesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get locality => $composableBuilder(
+    column: $table.locality,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get city => $composableBuilder(
+    column: $table.city,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get country => $composableBuilder(
+    column: $table.country,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get formattedAddress => $composableBuilder(
+    column: $table.formattedAddress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get latitude => $composableBuilder(
     column: $table.latitude,
     builder: (column) => ColumnOrderings(column),
@@ -14919,6 +15300,23 @@ class $$PlacesTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get locality =>
+      $composableBuilder(column: $table.locality, builder: (column) => column);
+
+  GeneratedColumn<String> get city =>
+      $composableBuilder(column: $table.city, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get country =>
+      $composableBuilder(column: $table.country, builder: (column) => column);
+
+  GeneratedColumn<String> get formattedAddress => $composableBuilder(
+    column: $table.formattedAddress,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get latitude =>
       $composableBuilder(column: $table.latitude, builder: (column) => column);
@@ -14992,6 +15390,11 @@ class $$PlacesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
+                Value<String?> locality = const Value.absent(),
+                Value<String?> city = const Value.absent(),
+                Value<String?> state = const Value.absent(),
+                Value<String?> country = const Value.absent(),
+                Value<String?> formattedAddress = const Value.absent(),
                 Value<double?> latitude = const Value.absent(),
                 Value<double?> longitude = const Value.absent(),
                 Value<bool> isConfirmed = const Value.absent(),
@@ -15002,6 +15405,11 @@ class $$PlacesTableTableManager
                 updatedAt: updatedAt,
                 id: id,
                 name: name,
+                locality: locality,
+                city: city,
+                state: state,
+                country: country,
+                formattedAddress: formattedAddress,
                 latitude: latitude,
                 longitude: longitude,
                 isConfirmed: isConfirmed,
@@ -15014,6 +15422,11 @@ class $$PlacesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 required String id,
                 required String name,
+                Value<String?> locality = const Value.absent(),
+                Value<String?> city = const Value.absent(),
+                Value<String?> state = const Value.absent(),
+                Value<String?> country = const Value.absent(),
+                Value<String?> formattedAddress = const Value.absent(),
                 Value<double?> latitude = const Value.absent(),
                 Value<double?> longitude = const Value.absent(),
                 Value<bool> isConfirmed = const Value.absent(),
@@ -15024,6 +15437,11 @@ class $$PlacesTableTableManager
                 updatedAt: updatedAt,
                 id: id,
                 name: name,
+                locality: locality,
+                city: city,
+                state: state,
+                country: country,
+                formattedAddress: formattedAddress,
                 latitude: latitude,
                 longitude: longitude,
                 isConfirmed: isConfirmed,

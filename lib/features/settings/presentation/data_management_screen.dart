@@ -100,9 +100,20 @@ class DataManagementScreen extends ConsumerWidget {
                 // Database and file deletion remain available even when the
                 // platform notification service cannot be reached.
               }
-              await ref
+              final deleted = await ref
                   .read(memoryControllerProvider.notifier)
                   .deleteAllDerivedData();
+              if (!context.mounted) return;
+              if (!deleted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Data could not be cleared. Your memories are still available.',
+                    ),
+                  ),
+                );
+                return;
+              }
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(

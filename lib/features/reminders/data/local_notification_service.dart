@@ -23,15 +23,19 @@ class LocalNotificationService implements NotificationGateway {
     }
     await _plugin.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings('ic_memory_notification'),
       ),
     );
-    await _plugin
+    _initialized = true;
+  }
+
+  Future<bool> _requestPermission() async {
+    final allowed = await _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.requestNotificationsPermission();
-    _initialized = true;
+    return allowed ?? true;
   }
 
   @override
@@ -41,6 +45,10 @@ class LocalNotificationService implements NotificationGateway {
     required String eventId,
   }) async {
     await _initialize();
+    if (!await _requestPermission()) return false;
+    if (!scheduledFor.isAfter(DateTime.now())) {
+      throw ArgumentError('Choose a future date for the reminder.');
+    }
     await _plugin.zonedSchedule(
       id: id,
       title: 'Smart Memory',
@@ -64,5 +72,8 @@ class LocalNotificationService implements NotificationGateway {
   }
 
   @override
-  Future<void> cancelAll() => _plugin.cancelAll();
+  Future<void> cancelAll() async {
+    await _initialize();
+    await _plugin.cancelAll();
+  }
 }

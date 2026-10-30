@@ -46,6 +46,8 @@ class AppNavigation extends StatelessWidget {
               context.go('/graph');
             case 3:
               context.go('/recommendations');
+            case 4:
+              context.go('/chat');
           }
         },
         destinations: const [
@@ -67,7 +69,12 @@ class AppNavigation extends StatelessWidget {
           NavigationDestination(
             icon: Icon(Icons.lightbulb_outline),
             selectedIcon: Icon(Icons.lightbulb),
-            label: 'Review',
+            label: 'Preserve',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'Companion',
           ),
         ],
       ),

@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:record/record.dart';
+import '../data/voice_recording_service.dart';
+import '../../../core/widgets/voice_note_player.dart';
+import '../../../core/services/device_media_service.dart';
 
 import 'memory_controller.dart';
 
@@ -18,7 +18,15 @@ class VoiceNoteScreen extends ConsumerStatefulWidget {
 }
 
 class _VoiceNoteScreenState extends ConsumerState<VoiceNoteScreen> {
-  final _recorder = AudioRecorder();
+  late final VoiceRecordingService _recorder;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _recorder = ref.read(voiceRecordingFactoryProvider)();
+  }
+
   Timer? _timer;
   var _recording = false;
   var _elapsed = Duration.zero;
@@ -27,48 +35,68 @@ class _VoiceNoteScreenState extends ConsumerState<VoiceNoteScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    unawaited(_recorder.dispose());
+    unawaited(_recorder.dispose().catchError((_) {}));
     super.dispose();
   }
 
   Future<void> _toggle() async {
-    if (_recording) {
-      final path = await _recorder.stop();
-      _timer?.cancel();
-      if (path != null) {
-        ref
-            .read(memoryControllerProvider.notifier)
-            .attachVoiceNote(widget.eventId, path);
-      }
-      if (mounted) setState(() => _recording = false);
-      return;
-    }
-    final allowed = await _recorder.hasPermission();
-    if (!allowed) {
-      setState(
-        () => _error =
-            'Microphone permission was denied. No recording was created.',
-      );
-      return;
-    }
-    final directory = await getApplicationSupportDirectory();
-    final path = p.join(
-      directory.path,
-      'voice_${widget.eventId}_${DateTime.now().millisecondsSinceEpoch}.m4a',
-    );
-    await _recorder.start(
-      const RecordConfig(encoder: AudioEncoder.aacLc),
-      path: path,
-    );
-    _elapsed = Duration.zero;
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _elapsed += const Duration(seconds: 1));
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
     });
-    if (mounted) {
-      setState(() {
-        _recording = true;
-        _error = null;
+    try {
+      if (_recording) {
+        final path = await _recorder.stop();
+        _timer?.cancel();
+        if (!mounted) return;
+        if (path != null) {
+          ref
+              .read(memoryControllerProvider.notifier)
+              .attachVoiceNote(widget.eventId, path);
+        }
+        setState(() {
+          _recording = false;
+          if (path == null) {
+            _error = 'No audio was saved. Please try recording again.';
+          }
+        });
+        return;
+      }
+      final allowed = await _recorder.hasPermission();
+      if (!mounted) return;
+      if (!allowed) {
+        setState(
+          () => _error =
+              'Microphone permission was denied. No recording was created.',
+        );
+        return;
+      }
+      try {
+        await DeviceMediaService.channel.invokeMethod('audioStop');
+      } on Object {
+        /* No active playback on this platform. */
+      }
+      await _recorder.start(widget.eventId);
+      if (!mounted) {
+        await _recorder.dispose();
+        return;
+      }
+      _elapsed = Duration.zero;
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() => _elapsed += const Duration(seconds: 1));
       });
+      setState(() => _recording = true);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Recording could not be completed. '
+              'Check microphone access and available storage, then try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -88,7 +116,7 @@ class _VoiceNoteScreenState extends ConsumerState<VoiceNoteScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Voice note')),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -117,6 +145,17 @@ class _VoiceNoteScreenState extends ConsumerState<VoiceNoteScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+              if (event.hasVoiceNote && !_recording) ...[
+                VoiceNotePlayer(
+                  key: ValueKey(event.voiceNotePath),
+                  path: event.voiceNotePath!,
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Back to memory'),
+                ),
+              ],
               Text(
                 _recording
                     ? '${_elapsed.inMinutes.toString().padLeft(2, '0')}:${(_elapsed.inSeconds % 60).toString().padLeft(2, '0')}'
@@ -127,7 +166,7 @@ class _VoiceNoteScreenState extends ConsumerState<VoiceNoteScreen> {
               ),
               const SizedBox(height: 20),
               FilledButton.icon(
-                onPressed: _toggle,
+                onPressed: _busy ? null : _toggle,
                 icon: Icon(_recording ? Icons.stop : Icons.mic),
                 label: Text(_recording ? 'Stop and attach' : 'Start recording'),
               ),

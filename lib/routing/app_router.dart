@@ -1,3 +1,4 @@
+import '../features/chatbot/presentation/memory_companion_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +26,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
     initialLocation: '/',
     routes: [
+      GoRoute(
+        path: '/chat',
+        builder: (context, state) => const MemoryCompanionScreen(),
+      ),
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(
         path: '/onboarding',
@@ -44,12 +49,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/timeline',
-        builder: (context, state) => const StoryTimelineScreen(),
+        builder: (context, state) => StoryTimelineScreen(
+          personId: state.uri.queryParameters['person'],
+          personName: state.uri.queryParameters['personName'],
+          location: state.uri.queryParameters['location'],
+        ),
       ),
       GoRoute(
         path: '/event/:id',
-        builder: (context, state) =>
-            EventDetailScreen(eventId: state.pathParameters['id']!),
+        builder: (context, state) => EventDetailScreen(
+          eventId: state.pathParameters['id']!,
+          mediaId: state.uri.queryParameters['media'],
+        ),
         routes: [
           GoRoute(
             path: 'edit',

@@ -5,14 +5,20 @@ import 'package:go_router/go_router.dart';
 import '../../event_management/presentation/memory_controller.dart';
 import '../domain/media_import_gateway.dart';
 
+final _resolvePlaceNamesProvider = StateProvider<bool>((ref) => false);
+final _recheckLocationsProvider = StateProvider<bool>((ref) => false);
+
 class MediaScanScreen extends ConsumerWidget {
   const MediaScanScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(memoryControllerProvider);
+    final resolveNames = ref.watch(_resolvePlaceNamesProvider);
+    final recheckLocations = ref.watch(_recheckLocationsProvider);
     final scanning = state.scanState == ScanState.scanning;
     final complete = state.scanState == ScanState.completed;
+    final blocked = scanning || state.isRestoring || state.restoreFailed;
     return Scaffold(
       appBar: AppBar(title: const Text('Scan gallery')),
       body: SafeArea(
@@ -49,7 +55,7 @@ class MediaScanScreen extends ConsumerWidget {
                 Text(
                   scanning || complete
                       ? state.scanStage
-                      : 'Only thumbnails and metadata are processed. Original photos and videos remain unchanged in the gallery.',
+                      : 'Read capture metadata and clearer image previews on this device. Original photos and videos remain unchanged in the gallery.',
                   textAlign: TextAlign.center,
                   style: Theme.of(
                     context,
@@ -85,6 +91,70 @@ class MediaScanScreen extends ConsumerWidget {
                   icon: Icons.account_tree_outlined,
                   label: 'Apply explainable hybrid clustering',
                 ),
+                if (!scanning) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'About photo locations',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Camera media has a capture location only when GPS was saved. Downloads, movies, screenshots and recordings usually have none. You can add a place inside any event.',
+                          ),
+                          TextButton(
+                            onPressed: blocked
+                                ? null
+                                : () => ref
+                                      .read(memoryControllerProvider.notifier)
+                                      .requestGalleryAccess(),
+                            child: const Text(
+                              'Review gallery & location access',
+                            ),
+                          ),
+                          if (state.events.isNotEmpty)
+                            Text(
+                              '${state.events.expand((e) => e.media).where((m) => m.captureLocation != null).length} media items have saved GPS in this library.',
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Look up place names (optional)'),
+                    subtitle: const Text(
+                      'The device service may send photo coordinates to its provider. Photos are never uploaded. Offline scans keep coordinates.',
+                    ),
+                    value: resolveNames,
+                    onChanged: blocked
+                        ? null
+                        : (value) =>
+                              ref
+                                      .read(_resolvePlaceNamesProvider.notifier)
+                                      .state =
+                                  value,
+                  ),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Recheck missing photo locations'),
+                    subtitle: const Text(
+                      'Use after changing photo permissions or restoring originals.',
+                    ),
+                    value: recheckLocations,
+                    onChanged: blocked
+                        ? null
+                        : (value) =>
+                              ref
+                                      .read(_recheckLocationsProvider.notifier)
+                                      .state =
+                                  value ?? false,
+                  ),
+                ],
                 if (state.errorMessage != null) ...[
                   const SizedBox(height: 16),
                   Card(
@@ -103,11 +173,14 @@ class MediaScanScreen extends ConsumerWidget {
                 const SizedBox(height: 26),
                 if (!complete)
                   FilledButton.icon(
-                    onPressed: scanning
+                    onPressed: blocked
                         ? null
                         : () => ref
                               .read(memoryControllerProvider.notifier)
-                              .scanGallery(),
+                              .scanGallery(
+                                resolvePlaceNames: resolveNames,
+                                recheckLocations: recheckLocations,
+                              ),
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: Text(
                       scanning ? 'Scanning privately…' : 'Start on-device scan',
@@ -119,9 +192,37 @@ class MediaScanScreen extends ConsumerWidget {
                     icon: const Icon(Icons.auto_stories_outlined),
                     label: const Text('Open story timeline'),
                   ),
+                if (!blocked && state.galleryAccess == GalleryAccess.denied)
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final controller = ref.read(
+                        memoryControllerProvider.notifier,
+                      );
+                      final access = await controller.requestGalleryAccess();
+                      if (access != GalleryAccess.denied) {
+                        await controller.scanGallery(
+                          resolvePlaceNames: resolveNames,
+                          recheckLocations: recheckLocations,
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Allow photo access'),
+                  ),
+                if (complete)
+                  OutlinedButton.icon(
+                    onPressed: () => ref
+                        .read(memoryControllerProvider.notifier)
+                        .scanGallery(
+                          resolvePlaceNames: resolveNames,
+                          recheckLocations: recheckLocations,
+                        ),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Scan for new photos'),
+                  ),
                 if (state.galleryAccess == GalleryAccess.limited)
                   OutlinedButton.icon(
-                    onPressed: scanning
+                    onPressed: blocked
                         ? null
                         : () => ref
                               .read(memoryControllerProvider.notifier)

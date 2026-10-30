@@ -4,13 +4,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/memory_cover.dart';
+import '../../../core/widgets/memory_location.dart';
 import '../../../core/widgets/score_chip.dart';
+import '../../../core/widgets/voice_note_player.dart';
+import 'event_media_gallery.dart';
 import 'memory_controller.dart';
 
 class EventDetailScreen extends ConsumerStatefulWidget {
-  const EventDetailScreen({required this.eventId, super.key});
+  const EventDetailScreen({required this.eventId, this.mediaId, super.key});
 
   final String eventId;
+  final String? mediaId;
 
   @override
   ConsumerState<EventDetailScreen> createState() => _EventDetailScreenState();
@@ -40,6 +44,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         ref.read(memoryControllerProvider.notifier).markViewed(widget.eventId);
       });
     }
+    final selectedMedia = event.media
+        .where((m) => m.id == widget.mediaId)
+        .firstOrNull;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
@@ -67,8 +74,23 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         children: [
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 900),
-            child: MemoryCover(event: event, height: 260),
+            child: MemoryCover(
+              key: ValueKey(selectedMedia?.id ?? event.coverMediaId),
+              event: selectedMedia == null
+                  ? event
+                  : event.copyWith(coverMediaId: selectedMedia.id),
+              height: 260,
+            ),
           ),
+          if (widget.mediaId != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                selectedMedia == null
+                    ? 'This photo is no longer in this event.'
+                    : 'Selected ${selectedMedia.kind.name}: ${formatMemoryDate(selectedMedia.capturedAt)}',
+              ),
+            ),
           const SizedBox(height: 20),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,21 +117,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               context,
             ).textTheme.titleMedium?.copyWith(color: scheme.onSurfaceVariant),
           ),
-          if (event.place != null) ...[
-            const SizedBox(height: 5),
-            Row(
-              children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  size: 18,
-                  color: scheme.primary,
-                ),
-                const SizedBox(width: 6),
-                Expanded(child: Text(event.place!.name)),
-              ],
-            ),
-          ],
+          const SizedBox(height: 12),
+          MemoryLocation(
+            event: event,
+            onEdit: () => context.push('/event/${event.id}/edit'),
+          ),
           const SizedBox(height: 16),
+          if (!event.isSensitive) ...[
+            EventMediaGallery(event: event, initialMediaId: widget.mediaId),
+            const SizedBox(height: 18),
+          ],
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -163,27 +180,27 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             const SizedBox(height: 14),
           ],
           _DetailSection(
-            title: 'Personal context',
-            child: event.hasStory
-                ? Text(
+            title: 'Preserve this memory · Your story',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (event.hasStory)
+                  Text(
                     event.story!,
                     style: Theme.of(
                       context,
                     ).textTheme.bodyLarge?.copyWith(height: 1.5),
                   )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('No personal story has been added yet.'),
-                      const SizedBox(height: 10),
-                      FilledButton.tonalIcon(
-                        onPressed: () =>
-                            context.push('/event/${event.id}/story'),
-                        icon: const Icon(Icons.edit_note),
-                        label: const Text('Add a short story'),
-                      ),
-                    ],
-                  ),
+                else
+                  const Text('Add the story behind these photos and videos.'),
+                const SizedBox(height: 10),
+                FilledButton.tonalIcon(
+                  onPressed: () => context.push('/event/${event.id}/story'),
+                  icon: const Icon(Icons.edit_note),
+                  label: Text(event.hasStory ? 'Edit story' : 'Add story'),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 14),
           _DetailSection(
@@ -216,23 +233,35 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           const SizedBox(height: 14),
           _DetailSection(
             title: 'Voice context',
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  event.hasVoiceNote ? Icons.graphic_eq : Icons.mic_none,
-                  color: scheme.primary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    event.hasVoiceNote
-                        ? 'A private app voice note is attached.'
-                        : 'No voice note attached.',
+                if (event.hasVoiceNote)
+                  VoiceNotePlayer(
+                    key: ValueKey(event.voiceNotePath),
+                    path: event.voiceNotePath!,
                   ),
-                ),
-                TextButton(
-                  onPressed: () => context.push('/event/${event.id}/voice'),
-                  child: Text(event.hasVoiceNote ? 'Replace' : 'Record'),
+                Row(
+                  children: [
+                    Icon(
+                      event.hasVoiceNote ? Icons.graphic_eq : Icons.mic_none,
+                      color: scheme.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        event.hasVoiceNote
+                            ? 'A private app voice note is attached.'
+                            : 'No voice note attached.',
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push('/event/${event.id}/voice'),
+                      child: Text(
+                        event.hasVoiceNote ? 'Replace' : 'Add voice note',
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

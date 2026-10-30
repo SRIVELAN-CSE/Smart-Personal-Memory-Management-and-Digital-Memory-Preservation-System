@@ -1,3 +1,7 @@
+# Current review update — 28 October 2026
+
+For 1.0.2 (build 4), `flutter analyze --no-pub` reports no issues and the full Flutter suite passes **95 tests**. Coverage includes saved OCR/story/voice/favourite state, sharing selection, audio playback/replacement controls, chatbot person/place/favourites retrieval, one-field search/date filters, graph navigation and small-phone routes in light/dark themes. Native hardware and APK evidence is recorded in [RELEASE_REVIEW.md](RELEASE_REVIEW.md). The dated records below concern earlier builds.
+
 # Testing and verification
 
 ## Automated commands
@@ -18,6 +22,40 @@ Drift generation after schema changes:
 ```powershell
 dart run build_runner build --delete-conflicting-outputs
 ```
+
+## Photo-location verification — 15 September 2026
+
+The full suite passes **53 tests**, including **17 new location regression tests**.
+Coverage includes asynchronous EXIF access, missing/invalid GPS, blank place names,
+lookup failure and timeout, SQLite/graph persistence, old-import recovery,
+unassigned media, repeated scans, manual edits during lookup, split/merge/media
+corrections, narrow-screen fallback, and tappable graph photo coordinates.
+
+Test files:
+
+- `test/features/photo_location_test.dart`
+- `test/widgets/photo_location_widget_test.dart`
+
+Before shipping, verify on a physical Android device:
+
+1. Import original photos whose capture coordinates are known; compare event and
+   graph photo details with the gallery metadata.
+2. Deny embedded-location access while allowing gallery access; import must still
+   complete and must not show a fabricated place.
+3. Repeat with selected-photo access and with a photo that has no GPS.
+4. Make the device geocoder unavailable; coordinates must remain visible.
+5. Rescan older imports; verify locations appear without duplicate events or lost
+   notes, OCR, people, or manual place names.
+6. Split, merge, add, and remove photos from different places; inspect the remaining
+   photo coordinates and the primary event location.
+
+Static analysis reports **No issues found**. Host previews of the event and graph
+screens were generated and visually inspected at 412 × 915 logical pixels using
+Roboto and Material Icons. The previews use explicitly illustrative demo data and
+are saved at `build/location-previews/event.png` and
+`build/location-previews/graph.png`.
+
+Host tests and generated previews do not replace these device checks.
 
 ## Verified automated coverage
 
@@ -49,7 +87,7 @@ No issues found!
 The final full pass reports:
 
 ```text
-00:04 +31: All tests passed!
+00:23 +53: All tests passed!
 ```
 
 Test sources live under
@@ -57,17 +95,20 @@ Test sources live under
 
 ## Verified Android artifact
 
-`flutter build apk --debug` completes successfully. Artifact evidence:
+The updated debug APK was built on 15 September 2026 and verified on
+20 September 2026. ZIP integrity, embedded location-feature code, package metadata,
+and Android debug signature checks all passed. No source/test files changed after
+this build. Artifact evidence:
 
 | Check | Result |
 |---|---|
 | Path | `build/app/outputs/flutter-apk/app-debug.apk` |
-| Size | 211,983,497 bytes |
+| Size | 190,069,347 bytes |
 | Application ID | `com.mkce.smartmemory` |
 | SDKs | min 24, target 36, compile 36 |
 | ABIs | armeabi-v7a, arm64-v8a, x86_64 |
 | Signature | Valid Android debug certificate, APK Signature Scheme v2 |
-| SHA-256 | `0f2b8e8ca72d307f771adfb64bb4053995721858987bb9107bae9b823f293ac7` |
+| SHA-256 | `bd5e4f6b99f855245e78592d0c7bf447c8fbc46974439adb95584e92431afd2d` |
 
 The standard Flutter debug manifest includes development Internet access for the
 debugger/hot reload. The main manifest and application code add no network client

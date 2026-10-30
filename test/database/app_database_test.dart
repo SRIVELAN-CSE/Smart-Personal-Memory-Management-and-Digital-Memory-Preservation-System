@@ -17,7 +17,7 @@ void main() {
     await database.close();
   });
 
-  test('schema version starts at one and enables foreign keys', () async {
+  test('current schema enables foreign keys', () async {
     expect(database.schemaVersion, smartMemorySchemaVersion);
 
     final result = await database
@@ -26,7 +26,7 @@ void main() {
     expect(result.read<int>('foreign_keys'), 1);
   });
 
-  test('version one creates important query indexes', () async {
+  test('current schema creates important query indexes', () async {
     await database.customSelect('SELECT 1;').getSingle();
     final rows = await database
         .customSelect(

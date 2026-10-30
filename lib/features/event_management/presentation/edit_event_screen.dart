@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'memory_controller.dart';
+import '../../../core/widgets/media_thumbnail.dart';
 
 class EditEventScreen extends ConsumerStatefulWidget {
   const EditEventScreen({required this.eventId, super.key});
@@ -46,7 +47,11 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
       _initialized = true;
       _titleController = TextEditingController(text: event.title);
       _descriptionController = TextEditingController(text: event.description);
-      _placeController = TextEditingController(text: event.place?.name);
+      _placeController = TextEditingController(
+        text: event.resolvedPlace?.name == event.primaryCaptureLocation?.label
+            ? null
+            : event.resolvedPlace?.name,
+      );
       _splitIndex = event.media.length > 1 ? event.media.length ~/ 2 : 1;
     }
     return Scaffold(
@@ -94,8 +99,11 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
           TextField(
             controller: _placeController,
             decoration: const InputDecoration(
-              labelText: 'Confirmed place',
-              hintText: 'Optional manual place name',
+              labelText: 'Place name',
+              hintText: 'Add or correct where this event happened',
+              helperText:
+                  'Labels every item in this event. Original capture GPS is kept separately.',
+              helperMaxLines: 2,
               prefixIcon: Icon(Icons.place_outlined),
             ),
           ),
@@ -191,7 +199,12 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        const Icon(Icons.photo_outlined),
+                        Positioned.fill(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: MediaThumbnail(media: media),
+                          ),
+                        ),
                         if (selected)
                           const Positioned(
                             right: 4,

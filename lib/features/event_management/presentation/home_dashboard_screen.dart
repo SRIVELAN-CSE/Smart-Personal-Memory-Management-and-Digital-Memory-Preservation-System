@@ -13,6 +13,24 @@ class HomeDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(memoryControllerProvider);
+    if (state.isRestoring || state.restoreFailed) {
+      return AppNavigation(
+        selectedIndex: 0,
+        title: 'Smart Memory',
+        child: Center(
+          child: state.isRestoring
+              ? const CircularProgressIndicator()
+              : const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Your saved library is still on this device. '
+                    'Retry loading it before scanning or editing memories.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+        ),
+      );
+    }
     final events = state.events;
     final pending = state.recommendations
         .where((item) => item.status.name == 'pending')
@@ -61,15 +79,15 @@ class HomeDashboardScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
-            GridView.count(
+            GridView(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: MediaQuery.sizeOf(context).width >= 780 ? 3 : 2,
-              childAspectRatio: MediaQuery.sizeOf(context).width >= 780
-                  ? 2.15
-                  : 1.36,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: MediaQuery.sizeOf(context).width >= 780 ? 3 : 2,
+                mainAxisExtent: 74 + MediaQuery.textScalerOf(context).scale(60),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+              ),
               children: [
                 _SummaryCard(
                   icon: Icons.auto_stories,

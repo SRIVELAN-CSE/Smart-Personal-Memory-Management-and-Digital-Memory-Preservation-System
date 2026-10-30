@@ -20,6 +20,12 @@ class DeviceSecurityService {
   final LocalAuthentication _authentication;
   final FlutterSecureStorage _secureStorage;
 
+  Future<String?> readThemePreference() =>
+      _secureStorage.read(key: 'theme_mode');
+
+  Future<void> saveThemePreference(String mode) =>
+      _secureStorage.write(key: 'theme_mode', value: mode);
+
   Future<bool> isBiometricGateEnabled() async {
     try {
       return await _secureStorage.read(key: 'biometric_gate_enabled') == 'true';
@@ -31,7 +37,7 @@ class DeviceSecurityService {
   Future<bool> authenticateForEntry() async {
     try {
       if (!await _authentication.isDeviceSupported()) return false;
-      return _authentication.authenticate(
+      return await _authentication.authenticate(
         localizedReason: 'Unlock Smart Memory',
         persistAcrossBackgrounding: true,
       );

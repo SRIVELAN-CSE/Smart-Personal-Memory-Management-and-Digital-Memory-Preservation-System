@@ -18,6 +18,9 @@ class ScoreChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final foreground = Theme.of(context).brightness == Brightness.dark
+        ? Color.lerp(color, Colors.white, .4)!
+        : color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -28,14 +31,16 @@ class ScoreChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 16, color: color),
+            Icon(icon, size: 16, color: foreground),
             const SizedBox(width: 6),
           ],
-          Text(
-            '$label ${formatScore(value)}',
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: color),
+          Flexible(
+            child: Text(
+              '$label ${formatScore(value)}',
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: foreground),
+            ),
           ),
         ],
       ),

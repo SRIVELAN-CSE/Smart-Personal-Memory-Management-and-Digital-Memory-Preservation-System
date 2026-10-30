@@ -22,6 +22,8 @@ gallery original.
 
 ## Permissions
 
+Selected-media sharing opens Android's chooser with temporary read access to only the selected gallery items. The chosen recipient app controls any subsequent upload or transmission. Smart Memory does not send the selection automatically. Opening an original photo/video likewise grants the chosen viewer temporary read access.
+
 - Media read permissions are requested only from the import flow.
 - Android selected-photo access is respected and can legitimately return no items.
 - Embedded media location access is distinct from current-device location; no
@@ -34,6 +36,21 @@ gallery original.
   absent. Flutter's debug/profile manifests add development Internet access for the
   debugger/hot reload; the main manifest and application code add no network client
   or upload path.
+
+## Photo location names
+
+Capture coordinates are read from accessible gallery media and stored locally.
+The scan screen offers an optional place-name lookup, off by default. The
+device geocoding service translates coordinates into place names; that operating-system service may use its own network provider. A place
+name is not required: coordinates remain usable offline, and photos without GPS
+can be assigned a manual place. The app never substitutes the device's current
+location for a photo's capture location. Only coordinates are supplied to the
+lookup service, never photographs, people tags, titles, or stories. Completed
+GPS checks (including missing GPS) are saved locally. Use **Recheck missing
+photo locations** after changing permissions or restoring an original file.
+
+Hidden events are excluded from the personal memory graph, and their locations
+are concealed on timeline cards.
 
 ## Sensitivity gate
 

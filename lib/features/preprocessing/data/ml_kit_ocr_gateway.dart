@@ -10,6 +10,17 @@ import '../domain/ocr_gateway.dart';
 class MlKitOcrGateway implements OcrGateway {
   const MlKitOcrGateway();
 
+  Future<String> recognizeFile(String path) async {
+    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    try {
+      return (await recognizer.processImage(
+        InputImage.fromFilePath(path),
+      )).text.trim();
+    } finally {
+      await recognizer.close();
+    }
+  }
+
   @override
   Future<String> recognizeThumbnail(Uint8List bytes) async {
     if (bytes.isEmpty) return '';

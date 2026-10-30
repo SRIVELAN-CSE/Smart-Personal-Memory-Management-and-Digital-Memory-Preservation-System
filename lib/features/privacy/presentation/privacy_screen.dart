@@ -85,23 +85,36 @@ class PrivacyScreen extends ConsumerWidget {
                   }
                 }
               } else {
-                await ref
-                    .read(deviceSecurityServiceProvider)
-                    .disableBiometricGate();
-                controller.setBiometricLock(false);
-                ref.invalidate(biometricGateEnabledProvider);
+                try {
+                  await ref
+                      .read(deviceSecurityServiceProvider)
+                      .disableBiometricGate();
+                  if (!context.mounted) return;
+                  controller.setBiometricLock(false);
+                  ref.invalidate(biometricGateEnabledProvider);
+                } on Object {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Could not update the access gate. Please try again.',
+                        ),
+                      ),
+                    );
+                  }
+                }
               }
             },
           ),
-          SwitchListTile(
+          const SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            value: settings.hideSensitivePreviews,
-            title: const Text('Hide sensitive previews'),
-            subtitle: const Text(
+            value: true,
+            title: Text('Hide sensitive previews'),
+            subtitle: Text(
               'Sensitive events use a concealed cover and are suppressed from recommendations.',
             ),
-            secondary: const Icon(Icons.visibility_off_outlined),
-            onChanged: controller.setHideSensitivePreviews,
+            secondary: Icon(Icons.visibility_off_outlined),
+            onChanged: null,
           ),
           const SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -117,9 +130,20 @@ class PrivacyScreen extends ConsumerWidget {
           Text('Appearance', style: Theme.of(context).textTheme.titleLarge),
           RadioGroup<ThemeMode>(
             groupValue: settings.themeMode,
-            onChanged: (value) {
-              if (value != null) {
-                controller.setThemeMode(value);
+            onChanged: (value) async {
+              if (value == null) return;
+              try {
+                await controller.setThemeMode(value);
+              } on Object {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Could not save the appearance setting. Please try again.',
+                      ),
+                    ),
+                  );
+                }
               }
             },
             child: const Column(
